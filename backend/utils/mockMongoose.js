@@ -143,6 +143,38 @@ class Document {
   }
 }
 
+class Query {
+  constructor(execFn) {
+    this.execFn = execFn;
+    this.populates = [];
+    this.sortSpec = null;
+    this.limitVal = null;
+  }
+
+  populate(path, select) {
+    this.populates.push({ path, select });
+    return this;
+  }
+
+  sort(spec) {
+    this.sortSpec = spec;
+    return this;
+  }
+
+  limit(n) {
+    this.limitVal = n;
+    return this;
+  }
+
+  session(sess) {
+    return this;
+  }
+
+  then(onFulfilled, onRejected) {
+    return this.execFn(this).then(onFulfilled, onRejected);
+  }
+}
+
 const mongoose = {
   Schema,
   Types: { ObjectId },
@@ -182,43 +214,23 @@ const mongoose = {
         return name;
       }
       
-      static async find(query) {
-        const list = db[name] || [];
-        const matches = list.filter(doc => matchesQuery(doc, query));
-        
-        const results = matches.map(doc => doc);
-        
-        const qArray = [...results];
-        qArray.populate = function(path, select) {
-          if (path === "userId") {
-            const users = db["User"] || [];
-            for (let i = 0; i < this.length; i++) {
-              const uId = castToId(this[i].userId);
-              const foundUser = users.find(u => u.id === uId);
-              if (foundUser) {
-                this[i].userId = {
-                  _id: foundUser._id,
-                  id: foundUser.id,
-                  name: foundUser.name,
-                  email: foundUser.email,
-                  role: foundUser.role
-                };
-              }
-            }
-          }
-          return this;
-        };
-        qArray.sort = function(spec) {
-          if (spec) {
-            let key = typeof spec === 'string' ? spec : Object.keys(spec)[0];
+      static find(query) {
+        return new Query(async (q) => {
+          let list = db[name] || [];
+          let matches = list.filter(doc => matchesQuery(doc, query));
+          
+          let results = matches.map(doc => doc);
+          
+          if (q.sortSpec) {
+            let key = typeof q.sortSpec === 'string' ? q.sortSpec : Object.keys(q.sortSpec)[0];
             let dir = 1;
-            if (typeof spec === 'string' && spec.startsWith('-')) {
-              key = spec.slice(1);
+            if (typeof q.sortSpec === 'string' && q.sortSpec.startsWith('-')) {
+              key = q.sortSpec.slice(1);
               dir = -1;
-            } else if (spec[key] === -1 || spec[key] === 'desc') {
+            } else if (q.sortSpec[key] === -1 || q.sortSpec[key] === 'desc') {
               dir = -1;
             }
-            this.sort((a, b) => {
+            results.sort((a, b) => {
               const valA = a[key];
               const valB = b[key];
               if (valA < valB) return -1 * dir;
@@ -226,34 +238,65 @@ const mongoose = {
               return 0;
             });
           }
-          return this;
-        };
-        qArray.limit = function(n) {
-          return createQueryArray(this.slice(0, n));
-        };
-        qArray.session = function() { return this; };
-        
-        function createQueryArray(arr) {
-          const res = [...arr];
-          res.populate = qArray.populate;
-          res.sort = qArray.sort;
-          res.limit = qArray.limit;
-          res.session = qArray.session;
-          return res;
-        }
-        
-        return qArray;
+
+          if (q.limitVal !== null) {
+            results = results.slice(0, q.limitVal);
+          }
+
+          for (const pop of q.populates) {
+            if (pop.path === "userId") {
+              const users = db["User"] || [];
+              for (let i = 0; i < results.length; i++) {
+                const uId = castToId(results[i].userId);
+                const foundUser = users.find(u => u.id === uId);
+                if (foundUser) {
+                  results[i] = new Document(name, {
+                    ...results[i].toObject(),
+                    userId: {
+                      _id: foundUser._id,
+                      id: foundUser.id,
+                      name: foundUser.name,
+                      email: foundUser.email,
+                      role: foundUser.role
+                    }
+                  });
+                }
+              }
+            }
+          }
+
+          return results;
+        });
       }
       
-      static async findOne(query) {
-        const list = db[name] || [];
-        const found = list.find(doc => matchesQuery(doc, query));
-        if (!found) return null;
-        
-        const qOne = Promise.resolve(found);
-        qOne.session = function() { return this; };
-        qOne.populate = function() { return this; };
-        return qOne;
+      static findOne(query) {
+        return new Query(async (q) => {
+          const list = db[name] || [];
+          const found = list.find(doc => matchesQuery(doc, query));
+          if (!found) return null;
+          
+          let resultDoc = found;
+          for (const pop of q.populates) {
+            if (pop.path === "userId") {
+              const users = db["User"] || [];
+              const uId = castToId(resultDoc.userId);
+              const foundUser = users.find(u => u.id === uId);
+              if (foundUser) {
+                resultDoc = new Document(name, {
+                  ...resultDoc.toObject(),
+                  userId: {
+                    _id: foundUser._id,
+                    id: foundUser.id,
+                    name: foundUser.name,
+                    email: foundUser.email,
+                    role: foundUser.role
+                  }
+                });
+              }
+            }
+          }
+          return resultDoc;
+        });
       }
       
       static async create(docOrDocs, options) {
@@ -271,39 +314,58 @@ const mongoose = {
         }
       }
       
-      static async findOneAndUpdate(query, update, options) {
-        const list = db[name] || [];
-        let found = list.find(doc => matchesQuery(doc, query));
-        
-        const isNew = options && options.new;
-        const upsert = options && options.upsert;
-        
-        let oldDoc = null;
-        if (found) {
-          oldDoc = { ...found };
-          updateDoc(found, update);
-        } else if (upsert) {
-          const newDocData = { ...query };
-          if (query.$or) {
-            for (const cond of query.$or) {
-              for (const [k, v] of Object.entries(cond)) {
-                if (!k.startsWith("$")) newDocData[k] = v;
+      static findOneAndUpdate(query, update, options) {
+        return new Query(async (q) => {
+          const list = db[name] || [];
+          let found = list.find(doc => matchesQuery(doc, query));
+          
+          const isNew = options && options.new;
+          const upsert = options && options.upsert;
+          
+          let oldDoc = null;
+          if (found) {
+            oldDoc = new Document(name, found.toObject());
+            updateDoc(found, update);
+          } else if (upsert) {
+            const newDocData = { ...query };
+            if (query.$or) {
+              for (const cond of query.$or) {
+                for (const [k, v] of Object.entries(cond)) {
+                  if (!k.startsWith("$")) newDocData[k] = v;
+                }
+              }
+              delete newDocData.$or;
+            }
+            found = new Document(name, newDocData);
+            updateDoc(found, update);
+            list.push(found);
+          } else {
+            return null;
+          }
+          
+          let returnDoc = isNew ? found : (oldDoc || found);
+
+          for (const pop of q.populates) {
+            if (pop.path === "userId") {
+              const users = db["User"] || [];
+              const uId = castToId(returnDoc.userId);
+              const foundUser = users.find(u => u.id === uId);
+              if (foundUser) {
+                returnDoc = new Document(name, {
+                  ...returnDoc.toObject(),
+                  userId: {
+                    _id: foundUser._id,
+                    id: foundUser.id,
+                    name: foundUser.name,
+                    email: foundUser.email,
+                    role: foundUser.role
+                  }
+                });
               }
             }
-            delete newDocData.$or;
           }
-          found = new Document(name, newDocData);
-          updateDoc(found, update);
-          list.push(found);
-        } else {
-          return null;
-        }
-        
-        const returnDoc = isNew ? found : (oldDoc || found);
-        const qOne = Promise.resolve(returnDoc);
-        qOne.session = function() { return this; };
-        qOne.populate = function() { return this; };
-        return qOne;
+          return returnDoc;
+        });
       }
       
       static async updateOne(query, update, options) {
