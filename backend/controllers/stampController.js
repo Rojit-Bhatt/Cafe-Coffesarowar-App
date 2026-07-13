@@ -1,5 +1,8 @@
 const { generateQRToken, claimStamp, getStampBalanceByUserId } = require("../services/stampService");
 const StampClaimEvent = require("../models/StampClaimEvent");
+const User = require("../models/User");
+const StampCard = require("../models/StampCard");
+const Voucher = require("../models/Voucher");
 
 const generateAdminQRToken = async (req, res, next) => {
   try {
@@ -55,9 +58,64 @@ const getRecentScans = async (req, res, next) => {
   }
 };
 
+const getCustomersList = async (req, res, next) => {
+  try {
+    const customers = await User.find({ role: "customer" }).sort({ name: 1 });
+
+    const data = await Promise.all(
+      customers.map(async (customer) => {
+        const stampCard = await StampCard.findOne({ userId: customer._id });
+        const stampsEarned = stampCard ? stampCard.stampsEarned : 0;
+        const lastStampedAt = stampCard ? stampCard.lastStampedAt : null;
+
+        const validVoucherCount = await Voucher.countDocuments({
+          userId: customer._id,
+          isValid: true,
+        });
+
+        const events = await StampClaimEvent.find({ userId: customer._id })
+          .sort({ createdAt: -1 })
+          .limit(10);
+
+        const scanHistory = events.map((event) => ({
+          id: event._id.toString(),
+          timestamp: event.createdAt,
+        }));
+
+        const idStr = customer._id.toString();
+        const suffix = idStr.substring(Math.max(0, idStr.length - 5)).toUpperCase();
+        const formattedId = `NO. ${suffix.padStart(5, '0')}`;
+
+        return {
+          id: idStr,
+          name: customer.name,
+          email: customer.email,
+          customerNo: formattedId,
+          stampsEarned,
+          lastStampedAt,
+          validVoucherCount,
+          scanHistory,
+        };
+      })
+    );
+
+    // Sort by last activity (most recent first)
+    data.sort((a, b) => {
+      const dateA = a.lastStampedAt ? new Date(a.lastStampedAt) : new Date(0);
+      const dateB = b.lastStampedAt ? new Date(b.lastStampedAt) : new Date(0);
+      return dateB - dateA;
+    });
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   generateAdminQRToken,
   claimCustomerStamp,
   getStampBalance,
-  getRecentScans
+  getRecentScans,
+  getCustomersList
 };
