@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { Building2, PlusCircle } from "lucide-react";
 import { usePlatformAuth } from "../../context/PlatformAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
+import { useAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../shared/AccountMenu";
 
 const NAV = [
@@ -15,6 +16,7 @@ const NAV = [
 export function PlatformLayout() {
   const { user, isLoading, logout } = usePlatformAuth();
   const navigate = useNavigate();
+  const { data: account } = useAccount("platform");
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "platform")) {
@@ -67,8 +69,8 @@ export function PlatformLayout() {
 
         <div className="mt-auto border-t border-[var(--line)] pt-3">
           <AccountMenu
-            initial={user.name.charAt(0).toUpperCase()}
-            name={user.name}
+            initial={(account?.name || user.name).charAt(0).toUpperCase()}
+            name={account?.name || user.name}
             settingsPath="/platform/settings"
             onLogout={() => {
               logout();

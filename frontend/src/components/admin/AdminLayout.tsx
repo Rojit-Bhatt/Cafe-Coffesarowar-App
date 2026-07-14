@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { useAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../shared/AccountMenu";
 
 interface NavLeaf {
@@ -73,6 +74,7 @@ export function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAdminAuth();
   const { data: settings } = useAdminSettings();
+  const { data: account } = useAccount("admin");
 
   const name = settings?.name || "Business";
   const initial = name.charAt(0).toUpperCase();
@@ -174,8 +176,8 @@ export function AdminLayout() {
 
         <div className="mt-auto border-t border-[var(--line)] pt-3">
           <AccountMenu
-            initial={(user?.name || "?").charAt(0).toUpperCase()}
-            name={user?.name || ""}
+            initial={(account?.name || user?.name || "?").charAt(0).toUpperCase()}
+            name={account?.name || user?.name || ""}
             settingsPath="settings"
             onLogout={handleLogout}
             dropUp

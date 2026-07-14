@@ -7,6 +7,7 @@ import { useCustomerMenu } from "../hooks/useCustomerMenu";
 import { apiRequest } from "../lib/api";
 import { PunchCard } from "../components/customer/PunchCard";
 import { AccountMenu } from "../components/shared/AccountMenu";
+import { useAccount } from "../hooks/useAccount";
 
 function osmEmbedUrl(lat: number, lon: number): string {
   const delta = 0.01;
@@ -21,8 +22,9 @@ function formatEventDate(iso: string): string {
 // Rendered inside CustomerLayout (phone shell + bottom nav). Content only.
 export default function CustomerDashboard() {
   const { user, logout } = useCustomerAuth();
+  const { data: account } = useAccount("customer");
   const unverified = user?.emailVerified === false;
-  const { tenant } = useTenant();
+  const { tenant, slug } = useTenant();
   const { data: stampData, isLoading: cardLoading } = useStampCard();
 
   const program = tenant?.program;
@@ -75,10 +77,10 @@ export default function CustomerDashboard() {
           </div>
         </div>
         <AccountMenu
-          initial={(user?.name || "?").charAt(0).toUpperCase()}
-          name={user?.name || ""}
-          email={user?.email}
-          settingsPath="settings"
+          initial={(account?.name || user?.name || "?").charAt(0).toUpperCase()}
+          name={account?.name || user?.name || ""}
+          email={account?.email || user?.email}
+          settingsPath={`/${slug}/settings`}
           onLogout={logout}
         />
       </div>
