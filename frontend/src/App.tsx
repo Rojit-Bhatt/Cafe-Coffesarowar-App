@@ -39,6 +39,7 @@ const StampProgram = lazy(() => import('./routes/admin/StampProgram'));
 const Branding = lazy(() => import('./routes/admin/Branding'));
 const AdminContact = lazy(() => import('./routes/admin/AdminContact'));
 const MenuManagement = lazy(() => import('./routes/admin/MenuManagement'));
+const AdminEvents = lazy(() => import('./routes/admin/AdminEvents'));
 const AdminReportsSummary = lazy(() => import('./routes/admin/AdminReportsSummary'));
 const AdminReportsCustomers = lazy(() => import('./routes/admin/AdminReportsCustomers'));
 const NotFound = lazy(() => import('./routes/NotFound'));
@@ -118,6 +119,7 @@ export default function App() {
                       <Route path="branding" element={<Branding />} />
                       <Route path="contact" element={<AdminContact />} />
                       <Route path="menu" element={<MenuManagement />} />
+                      <Route path="events" element={<AdminEvents />} />
                       <Route path="reports/summary" element={<AdminReportsSummary />} />
                       <Route path="reports/customers" element={<AdminReportsCustomers />} />
                     </Route>
