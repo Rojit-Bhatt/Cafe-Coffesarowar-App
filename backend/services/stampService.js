@@ -6,6 +6,7 @@ const StampCard = require("../models/StampCard");
 const Voucher = require("../models/Voucher");
 const StampClaimEvent = require("../models/StampClaimEvent");
 const Organization = require("../models/Organization");
+const User = require("../models/User");
 
 const TOKEN_TTL_SECONDS = 30;
 
@@ -85,6 +86,14 @@ const claimStamp = async ({ token, userId, role, organizationId }) => {
 
   if (role !== "customer") {
     throw createHttpError("Only customers can claim stamps.", 403);
+  }
+
+  const claimer = await User.findOne({ _id: userId, organizationId });
+  if (!claimer) {
+    throw createHttpError("Account not found.", 404);
+  }
+  if (claimer.emailVerified === false) {
+    throw createHttpError("Please verify your email before collecting stamps.", 403);
   }
 
   const org = await loadOrganizationOrThrow(organizationId);
