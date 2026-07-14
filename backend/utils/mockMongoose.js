@@ -46,9 +46,17 @@ function matchesQuery(doc, query) {
     
     let queryVal = query[key];
     let docVal = doc[key];
-    
-    // Handle operators
-    if (queryVal && typeof queryVal === 'object' && !Array.isArray(queryVal) && !(queryVal instanceof Date)) {
+
+    // Handle operators. Only treat the value as an operator object when it
+    // actually carries $-prefixed operator keys. Without this guard, a scalar
+    // object value like an ObjectId ({ _id, toString }) is misread as an
+    // operator object with no known operators, which makes the field match
+    // ANY document — so findOne({ _id: someObjectId }) returns the first doc
+    // in the collection instead of the one with that id.
+    const isOperatorObject =
+      queryVal && typeof queryVal === 'object' && !Array.isArray(queryVal) &&
+      !(queryVal instanceof Date) && Object.keys(queryVal).some(k => k.startsWith('$'));
+    if (isOperatorObject) {
       let matchesOps = true;
       for (const op of Object.keys(queryVal)) {
         if (op === "$lte") {
