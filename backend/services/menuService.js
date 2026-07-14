@@ -1,4 +1,12 @@
 const MenuItem = require("../models/MenuItem");
+// xlsx@0.18.5 (the last version published to npm) has unpatched High-severity
+// advisories on this exact parse path: GHSA-4r6h-8v6p-xvw6 (prototype
+// pollution) and GHSA-5pgg-2g8v-p4x9 (ReDoS). No npm-published fix exists —
+// SheetJS only publishes patched builds on their own CDN. Risk accepted:
+// parseMenuWorkbook only runs on files uploaded through POST
+// /api/admin/menu/import, which requires isBusinessAdmin auth — reachable
+// only by an authenticated tenant admin, never the public. Revisit if this
+// parsing path is ever exposed to unauthenticated or cross-tenant input.
 const XLSX = require("xlsx");
 
 const MAX_IMPORT_ROWS = 500;
