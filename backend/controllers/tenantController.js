@@ -1,4 +1,5 @@
 const Organization = require("../models/Organization");
+const { getUpcomingForOrg } = require("../services/eventService");
 
 const createHttpError = (message, statusCode) => {
   const error = new Error(message);
@@ -9,6 +10,7 @@ const createHttpError = (message, statusCode) => {
 const getPublicTenant = async (req, res, next) => {
   try {
     const { organization } = req;
+    const upcomingEvents = await getUpcomingForOrg(organization._id);
 
     res.status(200).json({
       success: true,
@@ -17,6 +19,7 @@ const getPublicTenant = async (req, res, next) => {
         slug: organization.slug,
         branding: organization.branding,
         contact: organization.contact,
+        upcomingEvents,
         menuEnabled: organization.menuEnabled,
         program: {
           stampsRequired: organization.program.stampsRequired,

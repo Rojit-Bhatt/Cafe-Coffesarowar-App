@@ -16,6 +16,7 @@ const {
   downloadMenuTemplate
 } = require("../controllers/menuController");
 const { getSummary, downloadSummary, downloadCustomers } = require("../controllers/reportController");
+const { listEvents, createEventController, updateEventController, deleteEventController } = require("../controllers/eventController");
 const { verifyToken, isBusinessAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -35,5 +36,9 @@ router.delete("/menu/:id", verifyToken, isBusinessAdmin, deleteMenuItem);
 router.get("/reports/summary", verifyToken, isBusinessAdmin, getSummary);
 router.get("/reports/summary/download", verifyToken, isBusinessAdmin, downloadSummary);
 router.get("/reports/customers/download", verifyToken, isBusinessAdmin, downloadCustomers);
+router.get("/events", verifyToken, isBusinessAdmin, listEvents);
+router.post("/events", verifyToken, isBusinessAdmin, createEventController);
+router.patch("/events/:id", verifyToken, isBusinessAdmin, updateEventController);
+router.delete("/events/:id", verifyToken, isBusinessAdmin, deleteEventController);
 
 module.exports = router;
