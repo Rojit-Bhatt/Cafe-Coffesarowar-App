@@ -89,6 +89,20 @@ export default function StampProgram() {
           </div>
         </div>
 
+        <div className="border-t border-[var(--line)] pt-5">
+          <label className="mb-1.5 block text-sm font-bold">Minimum bill amount</label>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              value={form.minBillAmount}
+              onChange={(e) => set("minBillAmount", Number(e.target.value))}
+              className="w-24 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--brand)] focus:outline-none"
+            />
+            <span className="text-sm text-[var(--muted)]">0 = no minimum — any bill amount can generate a code</span>
+          </div>
+        </div>
+
         <button
           onClick={save}
           disabled={update.isPending}
