@@ -1,9 +1,66 @@
+const multer = require("multer");
 const {
   listForOrg,
   createItem,
   updateItem,
-  deleteItem
+  deleteItem,
+  importMenuItems,
+  buildMenuTemplate
 } = require("../services/menuService");
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const okType =
+      file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+      file.mimetype === "application/vnd.ms-excel";
+    if (!okType) {
+      const error = new Error("Only .xlsx or .xls files are accepted.");
+      error.statusCode = 400;
+      return cb(error);
+    }
+    cb(null, true);
+  }
+});
+
+// Wraps upload.single so multer's own errors (wrong type, too large) reach
+// the app's error-handling middleware as 400s instead of defaulting to 500.
+const uploadMenuFile = (req, res, next) => {
+  upload.single("file")(req, res, (error) => {
+    if (error) {
+      if (error instanceof multer.MulterError) {
+        error.statusCode = 400;
+      }
+      return next(error);
+    }
+    next();
+  });
+};
+
+const importMenuItemsController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      const error = new Error("An Excel file is required.");
+      error.statusCode = 400;
+      throw error;
+    }
+    const result = await importMenuItems(req.user.organizationId, req.file.buffer);
+    res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const downloadMenuTemplate = (req, res) => {
+  const buffer = buildMenuTemplate();
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader("Content-Disposition", "attachment; filename=\"menu-template.xlsx\"");
+  res.send(buffer);
+};
 
 const getPublicMenu = async (req, res, next) => {
   try {
@@ -81,5 +138,8 @@ module.exports = {
   listMenu,
   createMenuItem,
   updateMenuItem,
-  deleteMenuItem
+  deleteMenuItem,
+  uploadMenuFile,
+  importMenuItemsController,
+  downloadMenuTemplate
 };

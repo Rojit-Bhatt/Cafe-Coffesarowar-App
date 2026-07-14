@@ -10,7 +10,10 @@ const {
   listMenu,
   createMenuItem,
   updateMenuItem,
-  deleteMenuItem
+  deleteMenuItem,
+  uploadMenuFile,
+  importMenuItemsController,
+  downloadMenuTemplate
 } = require("../controllers/menuController");
 const { verifyToken, isBusinessAdmin } = require("../middleware/authMiddleware");
 
@@ -24,6 +27,8 @@ router.get("/settings", verifyToken, isBusinessAdmin, getMySettings);
 router.patch("/settings", verifyToken, isBusinessAdmin, updateMySettings);
 router.get("/menu", verifyToken, isBusinessAdmin, listMenu);
 router.post("/menu", verifyToken, isBusinessAdmin, createMenuItem);
+router.post("/menu/import", verifyToken, isBusinessAdmin, uploadMenuFile, importMenuItemsController);
+router.get("/menu/template", verifyToken, isBusinessAdmin, downloadMenuTemplate);
 router.patch("/menu/:id", verifyToken, isBusinessAdmin, updateMenuItem);
 router.delete("/menu/:id", verifyToken, isBusinessAdmin, deleteMenuItem);
 
