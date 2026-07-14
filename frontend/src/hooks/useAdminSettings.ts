@@ -13,6 +13,7 @@ export interface AdminProgram {
   rewardTitle: string;
   rewardDescription: string;
   cooldownHours: number;
+  minBillAmount: number;
 }
 
 export interface AdminSettings {
