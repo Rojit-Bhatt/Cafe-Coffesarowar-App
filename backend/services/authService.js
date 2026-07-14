@@ -256,10 +256,54 @@ const authenticateWithGoogle = async ({ idToken, organizationId }) => {
   return formatAuthPayload(user);
 };
 
+const forgotPassword = async ({ email, organizationId, slug }) => {
+  if (email && organizationId) {
+    const user = await User.findOne({ organizationId, email: normalizeEmail(email) });
+    if (user) {
+      const raw = await issueToken(user, "password_reset", organizationId);
+      const link = buildAuthLink({ slug, path: "reset-password", token: raw });
+      await sendEmail({
+        to: user.email,
+        subject: "Reset your password",
+        html: `<p>Reset your password:</p><p><a href="${link}">${link}</a></p>`
+      });
+    }
+  }
+  return { success: true, message: "If that account exists, a reset link was sent." };
+};
+
+const resetPassword = async ({ token, password, organizationId }) => {
+  if (!token || !password) throw createHttpError("Token and new password are required.", 400);
+
+  const record = await VerificationToken.findOne({
+    tokenHash: hashToken(token),
+    type: "password_reset",
+    usedAt: null
+  });
+  if (!record || record.organizationId.toString() !== organizationId) {
+    throw createHttpError("This reset link is invalid or has already been used.", 400);
+  }
+  if (record.expiresAt.getTime() < Date.now()) {
+    throw createHttpError("This reset link has expired.", 400);
+  }
+
+  const user = await User.findOne({ _id: record.userId, organizationId });
+  if (!user) throw createHttpError("Account not found.", 404);
+
+  user.password = await bcrypt.hash(password, SALT_ROUNDS);
+  await user.save();
+  record.usedAt = new Date();
+  await record.save();
+
+  return { success: true, message: "Password updated. You can now log in." };
+};
+
 module.exports = {
   registerUser,
   loginUser,
   authenticateWithGoogle,
   verifyEmail,
-  resendVerification
+  resendVerification,
+  forgotPassword,
+  resetPassword
 };
