@@ -68,11 +68,16 @@ const generateQRToken = async (adminUserId, organizationId, billAmount) => {
   }
 
   const token = uuidv4();
+  const storedBillAmount =
+    billAmount !== undefined && billAmount !== null && billAmount !== "" && !Number.isNaN(Number(billAmount))
+      ? Number(billAmount)
+      : null;
 
   await DynamicQRToken.create({
     token,
     generatedBy: adminUserId,
-    organizationId
+    organizationId,
+    billAmount: storedBillAmount
   });
 
   return {
@@ -141,6 +146,8 @@ const claimStamp = async ({ token, userId, role, organizationId }) => {
         throw createHttpError("This QR token has expired.", 400);
       }
 
+      const claimedBillAmount = existingToken.billAmount ?? null;
+
       // Atomically consume the token: only the first claimer flips
       // isUsed false -> true. The earlier findOne read is racy on its own —
       // two customers scanning the same 30s token could both pass it — so the
@@ -193,6 +200,7 @@ const claimStamp = async ({ token, userId, role, organizationId }) => {
                 userId,
                 organizationId,
                 token,
+                billAmount: claimedBillAmount,
                 createdAt: now
               }
             ],
@@ -220,6 +228,7 @@ const claimStamp = async ({ token, userId, role, organizationId }) => {
             userId,
             organizationId,
             token,
+            billAmount: claimedBillAmount,
             createdAt: now
           }
         ],

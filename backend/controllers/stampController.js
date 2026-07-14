@@ -78,14 +78,20 @@ const getCustomersList = async (req, res, next) => {
           })
         ).length;
 
-        const events = await StampClaimEvent.find({ userId: customer._id, organizationId })
-          .sort({ createdAt: -1 })
-          .limit(10);
+        const lifetimeVoucherCount = await Voucher.countDocuments({
+          userId: customer._id,
+          organizationId,
+        });
 
-        const scanHistory = events.map((event) => ({
+        const allEvents = await StampClaimEvent.find({ userId: customer._id, organizationId })
+          .sort({ createdAt: -1 });
+
+        const scanHistory = allEvents.slice(0, 10).map((event) => ({
           id: event._id.toString(),
           timestamp: event.createdAt,
         }));
+
+        const totalSpent = allEvents.reduce((sum, event) => sum + (event.billAmount || 0), 0);
 
         const idStr = customer._id.toString();
         const suffix = idStr.substring(Math.max(0, idStr.length - 5)).toUpperCase();
@@ -95,10 +101,14 @@ const getCustomersList = async (req, res, next) => {
           id: idStr,
           name: customer.name,
           email: customer.email,
+          phone: customer.phone || "",
+          address: customer.address || "",
           customerNo: formattedId,
           stampsEarned,
           lastStampedAt,
           validVoucherCount,
+          lifetimeVoucherCount,
+          totalSpent,
           scanHistory,
         };
       })
