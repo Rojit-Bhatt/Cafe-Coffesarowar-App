@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   FileSpreadsheet,
   Phone,
+  Calendar,
   LogOut,
 } from "lucide-react";
 import { useAdminAuth } from "../../context/AdminAuthContext";
@@ -23,6 +24,7 @@ const NAV = [
   { to: "branding", label: "Branding", Icon: Palette },
   { to: "contact", label: "Contact", Icon: Phone },
   { to: "menu", label: "Menu", Icon: UtensilsCrossed },
+  { to: "events", label: "Events", Icon: Calendar },
   { to: "reports/summary", label: "Summary report", Icon: FileSpreadsheet },
   { to: "reports/customers", label: "Customer report", Icon: FileSpreadsheet },
 ];
