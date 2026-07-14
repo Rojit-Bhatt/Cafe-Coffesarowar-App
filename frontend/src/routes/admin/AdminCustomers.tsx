@@ -1,15 +1,22 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { CustomerDetailDrawer } from "../../components/admin/CustomerDetailDrawer";
 
 interface AdminCustomer {
   id: string;
   name: string;
   email: string;
   customerNo: string;
+  phone: string;
+  address: string;
   stampsEarned: number;
   lastStampedAt: string | null;
   validVoucherCount: number;
+  lifetimeVoucherCount: number;
+  totalSpent: number;
+  scanHistory: { id: string; timestamp: string }[];
 }
 
 function lastVisit(iso: string | null): string {
@@ -31,6 +38,7 @@ export default function AdminCustomers() {
       return res.data || [];
     },
   });
+  const [selected, setSelected] = useState<AdminCustomer | null>(null);
 
   return (
     <div>
@@ -52,9 +60,10 @@ export default function AdminCustomers() {
           <div className="px-5 py-10 text-center text-sm text-[var(--muted)]">No customers yet.</div>
         ) : (
           customers.map((c) => (
-            <div
+            <button
               key={c.id}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center border-b border-[var(--line)] px-5 py-3.5 last:border-b-0"
+              onClick={() => setSelected(c)}
+              className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center border-b border-[var(--line)] px-5 py-3.5 text-left last:border-b-0 hover:bg-[var(--bg)]"
             >
               <span className="flex items-center gap-3 min-w-0">
                 <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg)] text-xs font-bold text-[var(--muted)]">
@@ -71,10 +80,16 @@ export default function AdminCustomers() {
               </span>
               <span className="text-sm font-semibold">{c.validVoucherCount}</span>
               <span className="text-[13px] text-[var(--muted)]">{lastVisit(c.lastStampedAt)}</span>
-            </div>
+            </button>
           ))
         )}
       </div>
+
+      <CustomerDetailDrawer
+        customer={selected}
+        requiredStamps={required}
+        onClose={() => setSelected(null)}
+      />
     </div>
   );
 }
