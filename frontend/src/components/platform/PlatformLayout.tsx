@@ -12,8 +12,9 @@ const NAV = [
   { to: "contact", label: "Contact", Icon: Phone },
 ];
 
-// Guarded desktop shell for the platform super-admin. Accent is the fixed
-// platform maroon (--plat), distinct from a tenant's brand colour.
+// Guarded desktop shell for the platform super-admin. Accent (--plat)
+// aliases the single shared --brand token — the platform console is not
+// tenant-facing but still uses the one Stampd identity, not a separate one.
 export function PlatformLayout() {
   const { user, isLoading, logout } = usePlatformAuth();
   const navigate = useNavigate();
