@@ -71,9 +71,9 @@ export default function AdminCustomers() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[28px] font-bold text-[var(--ink)]">Customers</h1>
-          <p className="text-[var(--muted)]">
+          <div className="text-[var(--muted)]">
             {isLoading ? <Skeleton className="inline-block h-4 w-40 align-middle" /> : `${customers.length} member${customers.length === 1 ? "" : "s"} of ${settings?.name ?? "your business"}`}
-          </p>
+          </div>
         </div>
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-2 rounded-full bg-[var(--surface-container)] px-4 py-2.5">

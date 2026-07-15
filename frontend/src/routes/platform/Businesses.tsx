@@ -47,9 +47,9 @@ export default function Businesses() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="font-display text-[30px] font-extrabold text-[var(--ink)]">Businesses</h1>
-          <p className="text-[var(--muted)]">
+          <div className="text-[var(--muted)]">
             {isLoading ? <Skeleton className="inline-block h-4 w-36 align-middle" /> : `${businesses.length} onboarded · ${active} active`}
-          </p>
+          </div>
         </div>
         <Link
           to="onboard"

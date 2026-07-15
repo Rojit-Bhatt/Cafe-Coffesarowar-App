@@ -5,16 +5,27 @@ import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { VerifyEmailGate } from "./VerifyEmailGate";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
-  const { user, isLoading } = useAdminAuth();
+  const { user, isLoading, logout } = useAdminAuth();
   const navigate = useNavigate();
   const { slug } = useParams();
-  const { data: settings, isLoading: settingsLoading } = useAdminSettings();
+  const { data: settings, isLoading: settingsLoading, isError: settingsError } = useAdminSettings();
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "business_admin")) {
       navigate(slug ? `/${slug}/admin/login` : "/");
     }
   }, [user, isLoading, navigate, slug]);
+
+  // A cached token can outlive the session it names (backend data reset,
+  // token expiry). Without this, a stale token stuck the guard in a
+  // permanent "Verifying credentials" loop — the settings fetch kept
+  // 401ing while the guard kept trusting the stale localStorage user.
+  useEffect(() => {
+    if (settingsError && user) {
+      logout();
+      navigate(slug ? `/${slug}/admin/login` : "/");
+    }
+  }, [settingsError, user, logout, navigate, slug]);
 
   if (isLoading || (user && user.role === "business_admin" && settingsLoading)) {
     return (
