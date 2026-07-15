@@ -1,4 +1,4 @@
-import { Copy, Ticket, AlertCircle } from "lucide-react";
+import { Copy, Ticket, AlertCircle, Gift } from "lucide-react";
 import { useState } from "react";
 import { useTenant } from "../context/TenantContext";
 import { useVouchers } from "../hooks/useVouchers";
@@ -15,7 +15,7 @@ export default function CustomerWallet() {
 
   return (
     <div className="px-5 py-6">
-      <h1 className="font-display text-2xl font-extrabold text-[var(--ink)]">Wallet</h1>
+      <h1 className="font-display text-2xl font-bold text-[var(--ink)]">My wallet</h1>
       <p className="mb-5 text-[13px] text-[var(--muted)]">
         {active.length} active voucher{active.length === 1 ? "" : "s"} · {tenant?.name}
       </p>
@@ -23,7 +23,7 @@ export default function CustomerWallet() {
       {isLoading ? (
         <div className="flex flex-col gap-4">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="overflow-hidden rounded-[20px] border border-[var(--line)]">
+            <div key={i} className="overflow-hidden rounded-3xl border border-[var(--line)]">
               <div className="p-4">
                 <Skeleton className="mb-3 h-6 w-28" />
                 <Skeleton className="h-[52px] w-full rounded-[12px]" />
@@ -90,34 +90,55 @@ function VoucherTicket({
     : "";
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-[var(--line)]">
+    <div className="shadow-ambient stamp-interactive flex overflow-hidden rounded-3xl bg-[var(--surface)]">
+      {/* Ticket stub: a perforated seam with notch cutouts, echoing a paper coupon. */}
       <div
-        className="p-4 text-white"
-        style={{ background: "linear-gradient(140deg, var(--brand), var(--brand-deep))" }}
+        className="relative flex w-[92px] flex-shrink-0 flex-col items-center justify-center gap-1 text-white"
+        style={{ background: "var(--brand)" }}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <span className="font-display text-[19px] font-extrabold">{reward}</span>
-          <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider">
+        <Gift className="h-6 w-6" />
+        <span className="text-[10px] font-bold uppercase tracking-wider">Reward</span>
+        <span
+          className="absolute -right-2.5 -top-2.5 h-5 w-5 rounded-full bg-[var(--bg)]"
+          aria-hidden="true"
+        />
+        <span
+          className="absolute -bottom-2.5 -right-2.5 h-5 w-5 rounded-full bg-[var(--bg)]"
+          aria-hidden="true"
+        />
+        <span
+          className="absolute right-0 top-1/2 h-[85%] w-px -translate-y-1/2 border-r-2 border-dashed border-white/40"
+          aria-hidden="true"
+        />
+      </div>
+      <div className="flex-1 p-4">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <span className="font-display text-lg font-bold text-[var(--ink)]">{reward}</span>
+          <span
+            className="flex-shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider"
+            style={{ background: "var(--ok-soft)", color: "var(--ok)" }}
+          >
             Active
           </span>
         </div>
-        <div className="flex items-center justify-between rounded-[12px] bg-white/15 px-3.5 py-3">
+        <div className="mb-3 flex items-center justify-between rounded-xl bg-[var(--surface-container)] px-3 py-2.5">
           <div>
-            <div className="text-[10px] tracking-wider opacity-80">VOUCHER CODE</div>
-            <div className="font-mono text-lg font-bold tracking-[0.05em]">{code}</div>
+            <div className="text-[10px] uppercase tracking-wider text-[var(--soft)]">Code</div>
+            <div className="font-mono text-sm font-bold tracking-[0.05em] text-[var(--ink)]">{code}</div>
           </div>
           <button
             onClick={copy}
-            className="flex items-center gap-1.5 rounded-[10px] bg-white px-3.5 py-2 text-xs font-bold text-[var(--brand)]"
+            className="stamp-interactive flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white"
+            style={{ background: "var(--brand)" }}
           >
             <Copy className="h-3.5 w-3.5" />
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
-      </div>
-      <div className="flex justify-between px-4 py-3 text-xs text-[var(--muted)]">
-        <span>Earned {earned}</span>
-        <span>Show at counter to redeem</span>
+        <div className="flex justify-between text-xs text-[var(--muted)]">
+          <span>Earned {earned}</span>
+          <span>Show at counter</span>
+        </div>
       </div>
     </div>
   );

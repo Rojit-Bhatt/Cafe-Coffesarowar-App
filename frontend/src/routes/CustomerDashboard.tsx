@@ -106,36 +106,32 @@ export default function CustomerDashboard() {
       )}
 
       {/* Reward card */}
-      <div
-        className="mb-4 rounded-[26px] p-6 text-white"
-        style={{
-          background: "linear-gradient(155deg, var(--brand), var(--brand-deep))",
-          boxShadow: "0 22px 44px -22px var(--brand)",
-        }}
-      >
-        <div className="mb-4 flex items-start justify-between">
-          <div>
-            <div className="text-[11px] uppercase tracking-wider opacity-80">Reward card</div>
-            <div className="font-display text-[22px] font-extrabold">{reward}</div>
+      <div className="shadow-ambient mb-4 rounded-3xl bg-[var(--surface)] p-6">
+        <div className="mb-5 flex items-start justify-between">
+          <div className="min-w-0">
+            <div className="truncate font-display text-lg font-bold" style={{ color: "var(--brand)" }}>
+              {tenant?.name}
+            </div>
+            <div className="truncate text-sm text-[var(--muted)]">{reward}</div>
           </div>
-          <div className="text-right">
-            <div className="font-display text-2xl font-extrabold leading-none">
+          <div className="flex-shrink-0 text-right">
+            <div className="font-display text-2xl font-bold leading-none" style={{ color: "var(--brand)" }}>
               {cardLoading ? (
-                <span className="inline-block h-6 w-20 animate-pulse rounded bg-white/25 align-middle" />
+                <span className="inline-block h-6 w-14 animate-pulse rounded bg-[var(--line)] align-middle" />
               ) : (
-                `${stampsEarned} of ${required}`
+                `${stampsEarned}/${required}`
               )}
             </div>
-            <div className="text-[11px] opacity-80">stamps</div>
+            <div className="text-[11px] uppercase tracking-wider text-[var(--soft)]">stamps</div>
           </div>
         </div>
         <PunchCard stampsEarned={stampsEarned} stampsRequired={required} />
       </div>
 
       {/* Away hint */}
-      <div className="mb-2 flex items-center gap-3 rounded-[16px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3">
+      <div className="mb-2 flex items-center gap-3 rounded-3xl border border-[var(--line)] bg-[var(--surface-container)] px-4 py-3">
         <span
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] text-white"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-white"
           style={{ background: "var(--brand)" }}
         >
           <Coffee className="h-4 w-4" />
@@ -144,7 +140,7 @@ export default function CustomerDashboard() {
       </div>
 
       {featuredItems.length > 0 && (
-        <div className="mt-4 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="mt-4 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <div className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--soft)]">
             Featured picks
           </div>
@@ -165,7 +161,7 @@ export default function CustomerDashboard() {
       )}
 
       {upcomingEvents.length > 0 && (
-        <div className="mt-4 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="mt-4 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <div className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--soft)]">
             Upcoming events
           </div>
@@ -196,7 +192,7 @@ export default function CustomerDashboard() {
       )}
 
       {hasContact && contact && (
-        <div className="mt-4 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="mt-4 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <div className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--soft)]">
             Visit us
           </div>
