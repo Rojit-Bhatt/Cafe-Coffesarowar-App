@@ -35,7 +35,7 @@ export default function PlatformContact() {
       <div>
         <Skeleton className="mb-2 h-7 w-32" />
         <Skeleton className="mb-6 h-4 w-80" />
-        <div className="flex max-w-[560px] flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+        <div className="flex max-w-[560px] flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
           {Array.from({ length: 7 }).map((_, i) => (
             <div key={i}>
               <Skeleton className="mb-1.5 h-3.5 w-24" />
@@ -75,7 +75,7 @@ export default function PlatformContact() {
         Shown to visitors on the public Stampd landing page.
       </p>
 
-      <div className="flex max-w-[560px] flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+      <div className="flex max-w-[560px] flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
         <Field label="Phone" error={phoneError}>
           <input
             value={contact.phone}

@@ -31,14 +31,14 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
   if (isLoading || !account) {
     return (
       <div className="flex max-w-[480px] flex-col gap-6">
-        <div className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <Skeleton className="mb-3 h-4 w-20" />
           <Skeleton className="mb-1.5 h-3 w-16" />
           <Skeleton className="mb-3 h-11 w-full rounded-[11px]" />
           <Skeleton className="mb-3 h-3 w-40" />
           <Skeleton className="h-10 w-28 rounded-[13px]" />
         </div>
-        <div className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <Skeleton className="mb-3 h-4 w-32" />
           <Skeleton className="mb-1.5 h-3 w-24" />
           <Skeleton className="mb-3 h-11 w-full rounded-[11px]" />
@@ -86,7 +86,7 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
 
   return (
     <div className="flex max-w-[480px] flex-col gap-6">
-      <div className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-3 text-sm font-bold">Profile</div>
         <label className="mb-1.5 block text-sm font-bold">Name</label>
         <input
@@ -106,7 +106,7 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
       </div>
 
       {role !== "platform" && (
-        <div className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+        <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
           <div className="mb-2 text-sm font-bold">Email verification</div>
           <div className="mb-3 text-[13px] text-[var(--muted)]">
             {account.emailVerified ? "Verified" : "Not verified"}
@@ -123,7 +123,7 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
         </div>
       )}
 
-      <div className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-3 text-sm font-bold">Change password</div>
         <label className="mb-1.5 block text-sm font-bold">Current password</label>
         <input

@@ -17,7 +17,7 @@ export default function StampProgram() {
       <div className="max-w-[620px]">
         <Skeleton className="mb-2 h-7 w-56" />
         <Skeleton className="mb-6 h-4 w-72" />
-        <div className="flex flex-col gap-6 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+        <div className="flex flex-col gap-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
           <div>
             <Skeleton className="mb-2.5 h-3.5 w-52" />
             <Skeleton className="h-3 w-32" />
@@ -57,7 +57,7 @@ export default function StampProgram() {
       <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">Stamp program</h1>
       <p className="mb-6 text-[var(--muted)]">Configure how customers earn their reward.</p>
 
-      <div className="flex flex-col gap-6 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+      <div className="flex flex-col gap-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
         <div>
           <label className="mb-1 block text-sm font-bold">Stamps required per reward</label>
           <p className="mb-2.5 text-[13px] text-[var(--muted)]">Between 2 and 20 stamps.</p>

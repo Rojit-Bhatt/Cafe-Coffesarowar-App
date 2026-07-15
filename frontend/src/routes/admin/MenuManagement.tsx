@@ -119,7 +119,7 @@ export default function MenuManagement() {
       <p className="mb-5 text-[var(--muted)]">A display-only menu customers can browse in the app.</p>
 
       {/* Toggle */}
-      <div className="mb-5 flex items-center justify-between rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="mb-5 flex items-center justify-between shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div>
           <div className="text-[15px] font-bold">Show menu to customers</div>
           <div className="text-[13px] text-[var(--muted)]">
@@ -141,7 +141,7 @@ export default function MenuManagement() {
       </div>
 
       {/* Import from Excel */}
-      <div className="mb-6 rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="mb-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-3 text-sm font-bold">Import from Excel</div>
         <p className="mb-3 text-[13px] text-[var(--muted)]">
           Columns: Name (required), Price, Category, Description.
@@ -168,7 +168,7 @@ export default function MenuManagement() {
       </div>
 
       {/* Add item */}
-      <div className="mb-6 rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="mb-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-3 text-sm font-bold">Add an item</div>
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <input
@@ -209,7 +209,7 @@ export default function MenuManagement() {
       {/* List grouped by category */}
       <div className="flex flex-col gap-6" style={{ opacity: menuEnabled ? 1 : 0.55 }}>
         {isLoading ? (
-          <div className="overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]">
+          <div className="overflow-hidden shadow-ambient rounded-3xl bg-[var(--surface)]">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3.5 last:border-b-0">
                 <div className="min-w-0 flex-1">
@@ -230,7 +230,7 @@ export default function MenuManagement() {
               <h3 className="mb-2.5 font-display text-base font-bold" style={{ color: "var(--brand)" }}>
                 {cat}
               </h3>
-              <div className="overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]">
+              <div className="overflow-hidden shadow-ambient rounded-3xl bg-[var(--surface)]">
                 {items
                   .filter((i) => (i.category || "General") === cat)
                   .map((i) => (

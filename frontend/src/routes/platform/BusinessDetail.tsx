@@ -49,7 +49,7 @@ export default function BusinessDetail() {
         </div>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div key={i} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
               <Skeleton className="mb-1.5 h-3.5 w-20" />
               <Skeleton className="h-6 w-10" />
             </div>
@@ -121,7 +121,7 @@ export default function BusinessDetail() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div key={s.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
             <div className="mb-1.5 text-[13px] text-[var(--muted)]">{s.label}</div>
             <div className="font-display text-[24px] font-extrabold">{s.val}</div>
           </div>

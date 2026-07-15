@@ -145,7 +145,7 @@ export default function AdminEvents() {
       <p className="mb-5 text-[var(--muted)]">Announce upcoming events to your customers.</p>
 
       {/* Add event */}
-      <div className="mb-6 rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+      <div className="mb-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-3 text-sm font-bold">Add an event</div>
         <EventFields draft={draft} onChange={setDraft} />
         <button
@@ -159,7 +159,7 @@ export default function AdminEvents() {
       </div>
 
       {/* List */}
-      <div className="overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]">
+      <div className="overflow-hidden shadow-ambient rounded-3xl bg-[var(--surface)]">
         {isLoading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3.5 last:border-b-0">

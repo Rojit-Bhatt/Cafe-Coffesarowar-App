@@ -18,7 +18,7 @@ export default function CustomerMenu() {
       <p className="mb-5 text-[13px] text-[var(--muted)]">{tenant?.name}</p>
 
       {isLoading ? (
-        <div className="overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]">
+        <div className="overflow-hidden shadow-ambient rounded-3xl bg-[var(--surface)]">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 border-b border-[var(--line)] px-4 py-3.5 last:border-b-0">
               <div className="min-w-0 flex-1">
@@ -40,7 +40,7 @@ export default function CustomerMenu() {
               <h3 className="mb-2.5 font-display text-base font-bold" style={{ color: "var(--brand)" }}>
                 {cat}
               </h3>
-              <div className="overflow-hidden rounded-[16px] border border-[var(--line)] bg-[var(--surface)]">
+              <div className="overflow-hidden shadow-ambient rounded-3xl bg-[var(--surface)]">
                 {items
                   .filter((i) => (i.category || "General") === cat)
                   .map((i) => (

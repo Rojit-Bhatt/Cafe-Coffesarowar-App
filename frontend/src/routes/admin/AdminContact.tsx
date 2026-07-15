@@ -45,7 +45,7 @@ export default function AdminContact() {
         <Skeleton className="mb-2 h-7 w-40" />
         <Skeleton className="mb-6 h-4 w-96" />
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px]">
-          <div className="flex flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+          <div className="flex flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i}>
                 <Skeleton className="mb-1.5 h-3.5 w-20" />
@@ -91,7 +91,7 @@ export default function AdminContact() {
       </p>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="flex flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+        <div className="flex flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
           <Field label="Phone" error={phoneError}>
             <input
               value={contact.phone}

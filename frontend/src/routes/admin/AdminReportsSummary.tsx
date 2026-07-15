@@ -95,7 +95,7 @@ export default function AdminReportsSummary() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
-          <div key={c.label} className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div key={c.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
             <div className="mb-2 text-[13px] text-[var(--muted)]">{c.label}</div>
             {isLoading ? (
               <Skeleton className="h-[26px] w-12" />

@@ -174,7 +174,7 @@ export default function PlatformLanding() {
         <h2 className="mb-6 text-center font-display text-[30px] font-extrabold">Questions, answered</h2>
         <div className="flex flex-col gap-2.5">
           {FAQS.map((f) => (
-            <div key={f.q} className="rounded-[16px] border border-[var(--line)] bg-[var(--surface)] p-5">
+            <div key={f.q} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
               <div className="mb-1 text-[15px] font-bold">{f.q}</div>
               <div className="text-sm text-[var(--muted)]">{f.a}</div>
             </div>
@@ -185,7 +185,7 @@ export default function PlatformLanding() {
       {hasContact && contact && (
         <section className="mx-auto max-w-[760px] px-6 py-10">
           <h2 className="mb-6 text-center font-display text-[30px] font-extrabold">Contact us</h2>
-          <div className="rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+          <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
             {contact.address && (
               <div className="mb-2 flex items-start gap-2 text-sm text-[var(--ink)]">
                 <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-[var(--muted)]" />

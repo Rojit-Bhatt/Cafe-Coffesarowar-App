@@ -38,7 +38,7 @@ export default function Branding() {
         <Skeleton className="mb-2 h-7 w-36" />
         <Skeleton className="mb-6 h-4 w-96" />
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px]">
-          <div className="flex flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+          <div className="flex flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
             <div>
               <Skeleton className="mb-1.5 h-3.5 w-28" />
               <Skeleton className="h-11 w-full rounded-[11px]" />
@@ -94,7 +94,7 @@ export default function Branding() {
       </p>
 
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_340px]">
-        <div className="flex flex-col gap-5 rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+        <div className="flex flex-col gap-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
           <Field label="Business name">
             <input
               value={name}
