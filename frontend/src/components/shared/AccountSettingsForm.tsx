@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { LogOut } from "lucide-react";
 import { apiRequest } from "../../lib/api";
 import { useAccount, useUpdateProfile, useChangePassword } from "../../hooks/useAccount";
 
-export function AccountSettingsForm({ role }: { role: "admin" | "customer" | "platform" }) {
+interface AccountSettingsFormProps {
+  role: "admin" | "customer" | "platform";
+  // When provided, renders a "Log out" button below every other section —
+  // used by the customer app, which reaches Settings via a bottom-nav tab
+  // rather than a header dropdown (admin/platform keep logout in their
+  // existing sidebar AccountMenu, so they don't pass this).
+  onLogout?: () => void;
+}
+
+export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps) {
   const { data: account, isLoading } = useAccount(role);
   const updateProfile = useUpdateProfile(role);
   const changePassword = useChangePassword(role);
@@ -119,6 +129,16 @@ export function AccountSettingsForm({ role }: { role: "admin" | "customer" | "pl
           {changePassword.isPending ? "Saving…" : "Update password"}
         </button>
       </div>
+
+      {onLogout && (
+        <button
+          onClick={onLogout}
+          className="flex items-center justify-center gap-2 rounded-[13px] border border-[var(--line)] bg-[var(--surface)] py-3 text-sm font-bold text-[var(--muted)] transition-colors hover:text-[var(--ink)]"
+        >
+          <LogOut className="h-4 w-4" />
+          Log out
+        </button>
+      )}
     </div>
   );
 }
