@@ -31,7 +31,6 @@ export default function CustomerDashboard() {
   const reward = stampData?.rewardTitle ?? program?.rewardTitle ?? "Reward";
   const stampsEarned = stampData?.stampsEarned ?? 0;
   const remaining = Math.max(0, required - stampsEarned);
-  const initial = (tenant?.name || "?").charAt(0).toUpperCase();
 
   const contact = tenant?.contact;
   const hasLatLong = contact?.latitude != null && contact?.longitude != null;
@@ -59,22 +58,17 @@ export default function CustomerDashboard() {
       ? `You're ${remaining} stamp${remaining > 1 ? "s" : ""} from a ${reward}`
       : "Card complete — your reward is ready!";
 
+  const firstName = (account?.name || "").split(" ")[0];
+
   return (
     <div className="px-5 py-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center gap-3">
-        <div
-          className="flex h-11 w-11 items-center justify-center rounded-[13px] font-display text-[17px] font-extrabold text-white"
-          style={{ background: "var(--brand)" }}
-        >
-          {initial}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs text-[var(--muted)]">Welcome back ☕</div>
-          <div className="truncate font-display text-lg font-bold leading-tight text-[var(--ink)]">
-            {tenant?.name}
-          </div>
-        </div>
+      {/* Header — the shared top bar (wordmark/scan/notifications/avatar)
+          lives in CustomerLayout; this is page content underneath it. */}
+      <div className="mb-6">
+        <h1 className="font-display text-2xl font-bold leading-tight text-[var(--ink)]">
+          Welcome back{firstName ? `, ${firstName}` : ""}
+        </h1>
+        <p className="text-sm text-[var(--muted)]">{awayText}</p>
       </div>
 
       {/* Unverified-email prompt. Scanning is blocked by the backend (403)
