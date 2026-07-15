@@ -321,7 +321,7 @@ function SubmitButton({ loading, label }: { loading: boolean; label: string }) {
     <button
       type="submit"
       disabled={loading}
-      className="mt-2 w-full rounded-[15px] py-4 text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+      className="stamp-interactive mt-2 w-full rounded-full py-4 text-[15px] font-bold text-white disabled:opacity-50"
       style={{ background: "var(--brand)" }}
     >
       {loading ? "Please wait…" : label}

@@ -1,8 +1,7 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link, useParams } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
-import { CustomerDetailDrawer } from "../../components/admin/CustomerDetailDrawer";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface AdminCustomer {
@@ -26,6 +25,7 @@ function lastVisit(iso: string | null): string {
 }
 
 export default function AdminCustomers() {
+  const { slug } = useParams();
   const { data: settings } = useAdminSettings();
   const required = settings?.program?.stampsRequired ?? 5;
 
@@ -39,16 +39,15 @@ export default function AdminCustomers() {
       return res.data || [];
     },
   });
-  const [selected, setSelected] = useState<AdminCustomer | null>(null);
 
   return (
     <div>
-      <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">Customers</h1>
+      <h1 className="font-display text-[28px] font-bold text-[var(--ink)]">Customers</h1>
       <p className="mb-6 text-[var(--muted)]">
         {isLoading ? <Skeleton className="inline-block h-4 w-40 align-middle" /> : `${customers.length} member${customers.length === 1 ? "" : "s"} of ${settings?.name ?? "your business"}`}
       </p>
 
-      <div className="overflow-hidden rounded-[20px] border border-[var(--line)] bg-[var(--surface)]">
+      <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-b border-[var(--line)] px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
           <span>Customer</span>
           <span>No.</span>
@@ -77,10 +76,10 @@ export default function AdminCustomers() {
           <div className="px-5 py-10 text-center text-sm text-[var(--muted)]">No customers yet.</div>
         ) : (
           customers.map((c) => (
-            <button
+            <Link
               key={c.id}
-              onClick={() => setSelected(c)}
-              className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center border-b border-[var(--line)] px-5 py-3.5 text-left last:border-b-0 hover:bg-[var(--bg)]"
+              to={`/${slug}/admin/customers/${c.id}`}
+              className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center border-b border-[var(--line)] px-5 py-3.5 text-left last:border-b-0 hover:bg-[var(--surface-container)]"
             >
               <span className="flex items-center gap-3 min-w-0">
                 <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-[var(--line)] bg-[var(--bg)] text-xs font-bold text-[var(--muted)]">
@@ -97,16 +96,10 @@ export default function AdminCustomers() {
               </span>
               <span className="text-sm font-semibold">{c.validVoucherCount}</span>
               <span className="text-[13px] text-[var(--muted)]">{lastVisit(c.lastStampedAt)}</span>
-            </button>
+            </Link>
           ))
         )}
       </div>
-
-      <CustomerDetailDrawer
-        customer={selected}
-        requiredStamps={required}
-        onClose={() => setSelected(null)}
-      />
     </div>
   );
 }

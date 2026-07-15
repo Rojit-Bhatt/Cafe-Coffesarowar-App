@@ -38,7 +38,7 @@ export default function BusinessLanding() {
           <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">{tenant?.name}</h1>
           <p className="mb-6 text-[var(--muted)]">{branding?.tagline}</p>
 
-          <div className="mb-6 rounded-[20px] border border-[var(--line)] bg-[var(--bg)] p-5">
+          <div className="shadow-ambient mb-6 rounded-3xl bg-[var(--surface-container)] p-5">
             <div className="mb-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: "var(--brand)" }}>
               How it works
             </div>
@@ -51,7 +51,7 @@ export default function BusinessLanding() {
 
           <Link
             to={`/${slug}/register`}
-            className="mb-2.5 block w-full rounded-[15px] py-4 text-center text-[16px] font-bold text-white"
+            className="stamp-interactive mb-2.5 block w-full rounded-full py-4 text-center text-[16px] font-bold text-white"
             style={{ background: "var(--brand)" }}
           >
             Join &amp; start collecting

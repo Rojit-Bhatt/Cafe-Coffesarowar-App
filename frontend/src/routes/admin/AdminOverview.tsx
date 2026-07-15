@@ -71,7 +71,7 @@ export default function AdminOverview() {
         </div>
         <Link
           to={`/${slug}/admin/generate`}
-          className="rounded-[13px] px-5 py-3 text-[15px] font-bold text-white"
+          className="stamp-interactive rounded-full px-5 py-3 text-[15px] font-bold text-white"
           style={{ background: "var(--brand)" }}
         >
           Generate stamp code
@@ -80,14 +80,14 @@ export default function AdminOverview() {
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-[18px] border border-[var(--line)] bg-[var(--surface)] p-5">
+          <div key={s.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
             <div className="mb-2 text-[13px] text-[var(--muted)]">{s.label}</div>
-            <div className="font-display text-[28px] font-extrabold leading-none">{s.val}</div>
+            <div className="font-display text-[28px] font-bold leading-none">{s.val}</div>
           </div>
         ))}
       </div>
 
-      <div className="rounded-[20px] border border-[var(--line)] bg-[var(--surface)] p-6">
+      <div className="shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
         <div className="mb-4 flex items-center gap-2">
           <span className="h-2 w-2 rounded-full" style={{ background: "var(--ok)" }} />
           <h3 className="font-display text-[17px] font-bold">Live activity</h3>

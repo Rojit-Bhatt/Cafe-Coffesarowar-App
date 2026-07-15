@@ -40,6 +40,7 @@ const AdminOverview = lazy(() => import('./routes/admin/AdminOverview'));
 const GenerateQr = lazy(() => import('./routes/admin/GenerateQr'));
 const RedeemVoucher = lazy(() => import('./routes/admin/RedeemVoucher'));
 const AdminCustomers = lazy(() => import('./routes/admin/AdminCustomers'));
+const AdminCustomerDetail = lazy(() => import('./routes/admin/AdminCustomerDetail'));
 const StampProgram = lazy(() => import('./routes/admin/StampProgram'));
 const Branding = lazy(() => import('./routes/admin/Branding'));
 const AdminContact = lazy(() => import('./routes/admin/AdminContact'));
@@ -130,6 +131,7 @@ export default function App() {
                       <Route path="generate" element={<GenerateQr />} />
                       <Route path="redeem" element={<RedeemVoucher />} />
                       <Route path="customers" element={<AdminCustomers />} />
+                      <Route path="customers/:id" element={<AdminCustomerDetail />} />
                       <Route path="program" element={<StampProgram />} />
                       <Route path="branding" element={<Branding />} />
                       <Route path="contact" element={<AdminContact />} />
