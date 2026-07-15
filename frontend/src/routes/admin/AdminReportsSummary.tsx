@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { Download, UserPlus, Stamp, Ticket, CheckCircle2, Wallet } from "lucide-react";
 import { apiRequest, getTenantSlug } from "../../lib/api";
 import { Skeleton } from "../../components/ui/skeleton";
 
@@ -53,11 +53,11 @@ export default function AdminReportsSummary() {
   };
 
   const cards = [
-    { label: "New customers", val: stats?.newCustomers ?? "—" },
-    { label: "Stamps issued", val: stats?.stampsIssued ?? "—" },
-    { label: "Vouchers earned", val: stats?.vouchersEarned ?? "—" },
-    { label: "Vouchers redeemed", val: stats?.vouchersRedeemed ?? "—" },
-    { label: "Total revenue", val: stats?.totalRevenue ?? "—" },
+    { label: "New customers", val: stats?.newCustomers ?? "—", Icon: UserPlus },
+    { label: "Stamps issued", val: stats?.stampsIssued ?? "—", Icon: Stamp },
+    { label: "Vouchers earned", val: stats?.vouchersEarned ?? "—", Icon: Ticket },
+    { label: "Vouchers redeemed", val: stats?.vouchersRedeemed ?? "—", Icon: CheckCircle2 },
+    { label: "Total revenue", val: stats?.totalRevenue ?? "—", Icon: Wallet },
   ];
 
   return (
@@ -96,11 +96,14 @@ export default function AdminReportsSummary() {
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
-            <div className="mb-2 text-[13px] text-[var(--muted)]">{c.label}</div>
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--surface-container)]">
+              <c.Icon className="h-5 w-5" style={{ color: "var(--brand)" }} />
+            </div>
+            <div className="mb-1 text-[13px] uppercase tracking-wide text-[var(--muted)]">{c.label}</div>
             {isLoading ? (
               <Skeleton className="h-[26px] w-12" />
             ) : (
-              <div className="font-display text-[26px] font-extrabold leading-none">{c.val}</div>
+              <div className="font-display text-[26px] font-bold leading-none">{c.val}</div>
             )}
           </div>
         ))}
