@@ -104,7 +104,7 @@ export default function PlatformLanding() {
         <div className="flex justify-center">
           <div
             className="w-[300px] rounded-[32px] p-6 text-white shadow-2xl"
-            style={{ background: "linear-gradient(155deg, #B5533C, #8a3a28)" }}
+            style={{ background: "linear-gradient(155deg, var(--brand), var(--brand-deep))" }}
           >
             <div className="mb-4 flex items-center justify-between">
               <span className="text-xs uppercase tracking-wider opacity-80">Reward card</span>
@@ -121,7 +121,7 @@ export default function PlatformLanding() {
                   style={{
                     background: i < 5 ? "#fff" : "rgba(255,255,255,.1)",
                     border: `2px dashed ${i < 5 ? "#fff" : "rgba(255,255,255,.4)"}`,
-                    color: i < 5 ? "#B5533C" : "rgba(255,255,255,.5)",
+                    color: i < 5 ? "var(--brand)" : "rgba(255,255,255,.5)",
                   }}
                 >
                   {i < 5 ? "★" : i + 1}
