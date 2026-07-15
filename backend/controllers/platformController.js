@@ -5,6 +5,10 @@ const {
   getBusiness,
   updateBusiness
 } = require("../services/platformService");
+const {
+  getContact,
+  updateContact
+} = require("../services/platformConfigService");
 
 const platformLogin = async (req, res, next) => {
   try {
@@ -62,10 +66,40 @@ const patchBusiness = async (req, res, next) => {
   }
 };
 
+const getPublicPlatformContact = async (req, res, next) => {
+  try {
+    const contact = await getContact();
+    res.status(200).json({ success: true, contact });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPlatformContactAdmin = async (req, res, next) => {
+  try {
+    const contact = await getContact();
+    res.status(200).json({ success: true, contact });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const patchPlatformContact = async (req, res, next) => {
+  try {
+    const contact = await updateContact(req.body || {});
+    res.status(200).json({ success: true, contact });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   platformLogin,
   getBusinesses,
   postBusiness,
   getBusinessById,
-  patchBusiness
+  patchBusiness,
+  getPublicPlatformContact,
+  getPlatformContactAdmin,
+  patchPlatformContact
 };
