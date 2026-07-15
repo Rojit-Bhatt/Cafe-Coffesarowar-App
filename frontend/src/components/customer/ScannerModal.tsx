@@ -114,6 +114,20 @@ export function ScannerModal({
                 }
               }
 
+              // GenerateQr now encodes a full /:slug/claim?token=... URL (so
+              // scanning with the phone's own camera app opens the seamless
+              // claim landing page) — the in-app scanner decodes the same
+              // image, so extract the raw token from it. Falls back to
+              // decodedText itself for robustness (e.g. an old-style bare
+              // token, in case a stale/cached QR is scanned).
+              let rawToken = decodedText;
+              try {
+                const url = new URL(decodedText);
+                rawToken = url.searchParams.get("token") || decodedText;
+              } catch {
+                // Not a URL — decodedText is already the raw token.
+              }
+
               const toastId = toast.loading("Claiming your loyalty stamp...");
               try {
                 const response = await apiRequest<{
@@ -122,7 +136,7 @@ export function ScannerModal({
                   data?: { stampsEarned: number; rewardTriggered: boolean; voucherCode?: string };
                 }>("/api/stamps/claim", {
                   method: "POST",
-                  body: { token: decodedText },
+                  body: { token: rawToken },
                 });
 
                 if (response.success) {
