@@ -205,7 +205,7 @@ const authenticateWithGoogle = async ({ idToken, organizationId }) => {
     throw createHttpError("Invalid Google token.", 401);
   }
 
-  if (!payload || !payload.sub || !payload.email || !payload.name) {
+  if (!payload || !payload.sub || !payload.email || !payload.name || payload.email_verified !== true) {
     throw createHttpError("Invalid Google token payload.", 401);
   }
 
