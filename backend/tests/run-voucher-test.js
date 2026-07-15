@@ -124,7 +124,15 @@ app.post("/api/test/reset-cooldown", async (req, res) => {
 
   // 3. Start the test server
   const testEnv = { ...process.env };
-  delete testEnv.MONGODB_URI;
+  // Must be an explicit empty string, not `delete` — server.js's
+  // `require("dotenv").config()` runs inside the child and only skips a var
+  // that's already *defined* in process.env; a deleted (undefined) var gets
+  // silently refilled from backend/.env on disk (e.g. a real MONGODB_URI set
+  // there for normal dev use), which would point this test at a real
+  // database instead of the mock — and SMTP_HOST likewise, to keep using the
+  // fast console-log email stub instead of a real SMTP send.
+  testEnv.MONGODB_URI = "";
+  testEnv.SMTP_HOST = "";
   // server.js reads `process.env.PORT || 5001`, so drive the port via env.
   // (The old code tried to string-replace `const PORT = 5001;`, which no
   // longer matches `const PORT = process.env.PORT || 5001;` — leaving the

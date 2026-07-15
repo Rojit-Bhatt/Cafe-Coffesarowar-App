@@ -18,8 +18,21 @@ async function bootServer({ port = 5010, timeoutMs = 15000, env: envOverrides = 
   const serverPath = path.resolve(__dirname, "../../server.js");
   const baseUrl = `http://localhost:${port}`;
 
-  const env = { ...process.env, PORT: String(port), ...envOverrides };
-  delete env.MONGODB_URI; // force the zero-config in-memory mock DB
+  const env = { ...process.env, PORT: String(port) };
+  // Default to the fast, deterministic console-log email stub unless a test
+  // explicitly opts into real SMTP via `env: { SMTP_HOST: ... }` — otherwise
+  // a real SMTP_HOST configured in backend/.env for normal dev use would
+  // make every test that registers/verifies a customer try to send a real
+  // email through it.
+  if (!("SMTP_HOST" in envOverrides)) env.SMTP_HOST = "";
+  Object.assign(env, envOverrides);
+  // Force the zero-config in-memory mock DB, always, never overridable —
+  // must be an explicit empty string, not `delete`: server.js's
+  // `require("dotenv").config()` runs inside the child and only skips a var
+  // that's already *defined* in process.env; a deleted (undefined) var gets
+  // silently refilled from backend/.env on disk (e.g. a real MONGODB_URI set
+  // there for normal dev use), which would point tests at a real database.
+  env.MONGODB_URI = "";
   for (const key of deleteEnv) delete env[key];
 
   const child = spawn("node", [serverPath], {
