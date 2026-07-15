@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Building2, PlusCircle } from "lucide-react";
+import { Building2, PlusCircle, Phone } from "lucide-react";
 import { usePlatformAuth } from "../../context/PlatformAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { useAccount } from "../../hooks/useAccount";
@@ -9,6 +9,7 @@ import { AccountMenu } from "../shared/AccountMenu";
 const NAV = [
   { to: "", end: true, label: "Businesses", Icon: Building2 },
   { to: "onboard", label: "Onboard new", Icon: PlusCircle },
+  { to: "contact", label: "Contact", Icon: Phone },
 ];
 
 // Guarded desktop shell for the platform super-admin. Accent is the fixed

@@ -31,6 +31,7 @@ const Businesses = lazy(() => import('./routes/platform/Businesses'));
 const OnboardBusiness = lazy(() => import('./routes/platform/OnboardBusiness'));
 const BusinessDetail = lazy(() => import('./routes/platform/BusinessDetail'));
 const PlatformSettings = lazy(() => import('./routes/platform/PlatformSettings'));
+const PlatformContact = lazy(() => import('./routes/platform/PlatformContact'));
 const AdminLogin = lazy(() => import('./routes/admin/AdminLogin'));
 const AdminOverview = lazy(() => import('./routes/admin/AdminOverview'));
 const GenerateQr = lazy(() => import('./routes/admin/GenerateQr'));
@@ -87,6 +88,7 @@ export default function App() {
                     <Route path="onboard" element={<OnboardBusiness />} />
                     <Route path="business/:id" element={<BusinessDetail />} />
                     <Route path="settings" element={<PlatformSettings />} />
+                    <Route path="contact" element={<PlatformContact />} />
                   </Route>
 
                   {/* Tenant-scoped experiences. */}
