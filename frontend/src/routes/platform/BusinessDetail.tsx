@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../lib/api";
 import type { Business } from "./Businesses";
 import { Skeleton } from "../../components/ui/skeleton";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 
 export default function BusinessDetail() {
   const { id = "" } = useParams();
   const qc = useQueryClient();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const { data: business, isLoading } = useQuery<Business & { menuEnabled: boolean }>({
     queryKey: ["platformBusiness", id],
@@ -94,7 +97,7 @@ export default function BusinessDetail() {
         </div>
         <div className="flex gap-2.5">
           <button
-            onClick={() => setStatus.mutate(suspended ? "active" : "suspended")}
+            onClick={() => setConfirmOpen(true)}
             disabled={setStatus.isPending}
             className="rounded-[12px] border bg-white px-4 py-2.5 font-bold disabled:opacity-50"
             style={{
@@ -130,6 +133,20 @@ export default function BusinessDetail() {
           This business is suspended. Its storefront and logins are disabled until reactivated.
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={suspended ? "Reactivate this business?" : "Suspend this business?"}
+        description={
+          suspended
+            ? "Customers and the admin login will work again immediately."
+            : "Customers and the admin login will be disabled until reactivated."
+        }
+        confirmLabel={suspended ? "Reactivate" : "Suspend"}
+        confirmColor={suspended ? "var(--ok)" : "var(--warn)"}
+        onConfirm={() => setStatus.mutate(suspended ? "active" : "suspended")}
+      />
     </div>
   );
 }
