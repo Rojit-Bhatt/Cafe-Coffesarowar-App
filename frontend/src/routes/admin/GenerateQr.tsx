@@ -3,9 +3,14 @@ import { QRCodeSVG } from "qrcode.react";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { useTenant } from "../../context/TenantContext";
 
-// Barista generates a short-lived, single-use stamp QR. The customer scans it.
+// Barista generates a short-lived, single-use stamp QR. The customer scans it
+// with their phone's own camera app (not an in-app scanner) — the QR encodes
+// a URL to /:slug/claim, not the bare token, so opening it works from
+// anywhere.
 export default function GenerateQr() {
+  const { slug } = useTenant();
   const { data: settings } = useAdminSettings();
   const minBillAmount = settings?.program.minBillAmount ?? 0;
   const gateEnabled = minBillAmount > 0;
@@ -84,7 +89,12 @@ export default function GenerateQr() {
 
         <div className="mx-auto flex h-[230px] w-[230px] items-center justify-center rounded-[18px] border border-[var(--line)] bg-white p-4">
           {token && !expired ? (
-            <QRCodeSVG value={token} size={198} level="M" fgColor="#241E1B" />
+            <QRCodeSVG
+              value={`${window.location.origin}/${slug}/claim?token=${encodeURIComponent(token)}`}
+              size={198}
+              level="M"
+              fgColor="#241E1B"
+            />
           ) : (
             <div className="flex flex-col items-center gap-2 text-[var(--soft)]">
               <span className="text-3xl">⏱</span>
