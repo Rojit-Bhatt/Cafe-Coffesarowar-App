@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router-dom";
-import { Gift, Ticket, Copy, Check, Mail, Lock, User, Phone } from "lucide-react";
+import { useParams, useSearchParams, Link, useNavigate } from "react-router-dom";
+import { Mail, Lock, User, Phone } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiRequest } from "../lib/api";
 import { useTenant } from "../context/TenantContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
+import { StampCelebration } from "../components/customer/StampCelebration";
 
 type Stage =
   | "resolving"
@@ -39,6 +40,7 @@ function startClaimOnce(token: string) {
 export default function ClaimLanding() {
   const { slug = "" } = useParams();
   const [params] = useSearchParams();
+  const navigate = useNavigate();
   const { tenant } = useTenant();
   const { user, isLoading, ensureTenantSession, login, registerUser } = useCustomerAuth();
 
@@ -204,57 +206,17 @@ export default function ClaimLanding() {
 
   if (stage === "success" && result) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#121212] font-sans text-[#EBE6DF]">
-        <div className="w-full max-w-sm px-6 text-center">
-          <div className="relative mx-auto flex h-20 w-20 items-center justify-center rounded-[24px] border border-[#2D2D2D] bg-[#1A1A1A] text-[#EBE6DF] animate-bounce">
-            <Gift className="h-10 w-10 animate-pulse" strokeWidth={1.5} />
-            <span className="absolute -right-1 -top-1 animate-ping text-lg text-[#EBE6DF]">✦</span>
-          </div>
-          <h2 className="mt-6 font-serif text-3xl font-normal text-[#EBE6DF]">
-            {result.rewardTriggered ? "Congratulations!" : "Stamp added!"}
-          </h2>
-          <p className="mt-2 text-sm text-[#A3A3A3]">
-            {result.rewardTriggered
-              ? `You completed your card and earned a ${result.rewardTitle} voucher!`
-              : `${result.stampsEarned} stamp${result.stampsEarned === 1 ? "" : "s"} on your ${tenant?.name} card.`}
-          </p>
-
-          {result.rewardTriggered && result.voucherCode && (
-            <div className="relative mt-8 overflow-hidden rounded-[40px] border border-[#2D2D2D] bg-[#1A1A1A] p-6">
-              <div className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-[#EBE6DF]">
-                <Ticket className="h-4 w-4" />
-                <span>Voucher Code</span>
-              </div>
-              <p className="mt-3 select-all font-mono text-2xl font-bold tracking-widest text-[#EBE6DF]">
-                {result.voucherCode}
-              </p>
-              <button
-                onClick={copyCode}
-                className="mt-4 inline-flex items-center gap-1.5 overflow-hidden rounded-[20px] border border-[#2D2D2D] bg-[#121212] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#EBE6DF] transition-colors hover:bg-[#EBE6DF] hover:text-black"
-              >
-                {copied ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 text-[#EBE6DF]/50" />
-                    <span>Copy Code</span>
-                  </>
-                )}
-              </button>
-            </div>
-          )}
-
-          <Link
-            to={`/${slug}/dashboard`}
-            className="mt-10 flex w-full items-center justify-center rounded-[24px] border border-[#EBE6DF] bg-[#EBE6DF] py-4 text-sm font-bold uppercase tracking-wider text-black transition-opacity hover:opacity-90"
-          >
-            Go to dashboard
-          </Link>
-        </div>
-      </div>
+      <StampCelebration
+        rewardTriggered={result.rewardTriggered}
+        stampsEarned={result.stampsEarned}
+        stampsRequired={tenant?.program?.stampsRequired}
+        rewardTitle={result.rewardTitle || "reward"}
+        voucherCode={result.voucherCode}
+        copied={copied}
+        onCopyCode={copyCode}
+        onDone={() => navigate(`/${slug}/dashboard`)}
+        doneLabel="Go to dashboard"
+      />
     );
   }
 

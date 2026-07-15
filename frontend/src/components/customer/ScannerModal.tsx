@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { X, ScanLine, QrCode, Gift, Ticket, Copy, Check, ArrowRight, CameraOff } from "lucide-react";
+import { X, ScanLine, QrCode, CameraOff } from "lucide-react";
 import { Html5Qrcode } from "html5-qrcode";
 import toast from "react-hot-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
+import { useTenant } from "../../context/TenantContext";
+import { StampCelebration } from "./StampCelebration";
 
 export function ScannerModal({
   open,
@@ -22,8 +24,11 @@ export function ScannerModal({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { tenant } = useTenant();
+  const stampsRequired = tenant?.program?.stampsRequired;
 
   const [earnedVoucher, setEarnedVoucher] = useState<string | null>(null);
+  const [plainStamp, setPlainStamp] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
@@ -31,6 +36,7 @@ export function ScannerModal({
   useEffect(() => {
     if (!open) {
       setEarnedVoucher(null);
+      setPlainStamp(null);
       setCopied(false);
       setCameraError(null);
       setIsBlocked(false);
@@ -88,7 +94,7 @@ export function ScannerModal({
     let isMounted = true;
     let qrScanner: Html5Qrcode | null = null;
 
-    if (!earnedVoucher && !cameraError) {
+    if (!earnedVoucher && !plainStamp && !cameraError) {
       try {
         qrScanner = new Html5Qrcode("qr-reader-viewport");
         scannerRef.current = qrScanner;
@@ -143,14 +149,11 @@ export function ScannerModal({
                   queryClient.invalidateQueries({ queryKey: ["stampCard"] });
                   queryClient.invalidateQueries({ queryKey: ["vouchers"] });
 
+                  toast.dismiss(toastId);
                   if (response.data && response.data.rewardTriggered === true) {
-                    toast.success("Card completed!", { id: toastId });
                     setEarnedVoucher(response.data.voucherCode || "CAFE-REWARD");
                   } else {
-                    toast.success(response.message || "Stamp successfully claimed!", {
-                      id: toastId,
-                    });
-                    onClose();
+                    setPlainStamp(response.data?.stampsEarned ?? 1);
                   }
                 } else {
                   throw new Error(response.message || "Failed to claim stamp.");
@@ -203,7 +206,7 @@ export function ScannerModal({
         }
       }
     };
-  }, [open, onClose, queryClient, earnedVoucher, cameraError]);
+  }, [open, onClose, queryClient, earnedVoucher, plainStamp, cameraError]);
 
   const handleRetry = () => {
     setCameraError(null);
@@ -225,11 +228,40 @@ export function ScannerModal({
 
   if (!open) return null;
 
+  if (earnedVoucher) {
+    return (
+      <StampCelebration
+        rewardTriggered
+        stampsEarned={stampsRequired ?? 0}
+        rewardTitle={rewardTitle}
+        voucherCode={earnedVoucher}
+        copied={copied}
+        onCopyCode={copyToClipboard}
+        onDone={handleGoToWallet}
+        doneLabel="Go to wallet"
+        onSecondary={onClose}
+        secondaryLabel="Back to dashboard"
+      />
+    );
+  }
+
+  if (plainStamp !== null) {
+    return (
+      <StampCelebration
+        rewardTriggered={false}
+        stampsEarned={plainStamp}
+        stampsRequired={stampsRequired}
+        rewardTitle={rewardTitle}
+        onDone={onClose}
+      />
+    );
+  }
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label={earnedVoucher ? "Congratulations Reward Screen" : "Scan Counter QR code"}
+      aria-label="Scan Counter QR code"
       className="fixed inset-0 z-50 bg-[#121212]/98 flex items-center justify-center font-sans text-[#EBE6DF]"
     >
       {/* Close Button */}
@@ -242,65 +274,7 @@ export function ScannerModal({
         <X className="h-5 w-5" strokeWidth={2} />
       </button>
 
-      {earnedVoucher ? (
-        <div className="w-full max-w-sm px-6 text-center text-[#EBE6DF]">
-          {/* Celebrating icon */}
-          <div className="relative mx-auto flex h-20 w-20 items-center justify-center border border-[#2D2D2D] bg-[#1A1A1A] text-[#EBE6DF] animate-bounce rounded-[24px]">
-            <Gift className="h-10 w-10 animate-pulse" strokeWidth={1.5} />
-            <span className="absolute -top-1 -right-1 text-[#EBE6DF] text-lg animate-ping">✦</span>
-          </div>
-
-          <h2 className="mt-6 text-3xl font-normal text-[#EBE6DF] font-serif">Congratulations!</h2>
-          <p className="mt-2 text-sm text-[#A3A3A3]">
-            You completed your card and earned a {rewardTitle} voucher!
-          </p>
-
-          {/* Ticket representation */}
-          <div className="mt-8 relative overflow-hidden border border-[#2D2D2D] bg-[#1A1A1A] p-6 shadow-none rounded-[40px]">
-            <div className="flex items-center justify-center gap-2 text-[#EBE6DF] text-xs font-bold uppercase tracking-wider">
-              <Ticket className="h-4 w-4" />
-              <span>Voucher Code</span>
-            </div>
-
-            <p className="mt-3 text-2xl font-mono font-bold tracking-widest text-[#EBE6DF] select-all">
-              {earnedVoucher}
-            </p>
-
-            <button
-              onClick={copyToClipboard}
-              className="mt-4 inline-flex items-center gap-1.5 border border-[#2D2D2D] bg-[#121212] px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#EBE6DF] hover:bg-[#EBE6DF] hover:text-black transition-colors rounded-[20px] overflow-hidden"
-            >
-              {copied ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-[#EBE6DF]" />
-                  <span>Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 text-[#EBE6DF]/50" />
-                  <span>Copy Code</span>
-                </>
-              )}
-            </button>
-          </div>
-
-          <div className="mt-10 flex flex-col gap-3">
-            <button
-              onClick={handleGoToWallet}
-              className="flex w-full items-center justify-center gap-2 bg-[#EBE6DF] py-4 text-sm font-bold uppercase tracking-wider text-black border border-[#EBE6DF] hover:opacity-90 active:scale-98 transition-all rounded-[24px]"
-            >
-              Go to Wallet
-              <ArrowRight className="h-4 w-4" />
-            </button>
-            <button
-              onClick={onClose}
-              className="text-xs font-bold uppercase tracking-widest border border-[#2D2D2D] bg-[#1A1A1A] py-3 text-[#EBE6DF] hover:bg-[#EBE6DF] hover:text-black transition-colors rounded-[24px]"
-            >
-              Back to Dashboard
-            </button>
-          </div>
-        </div>
-      ) : cameraError ? (
+      {cameraError ? (
         <div className="flex h-full flex-col items-center justify-center px-6 text-[#EBE6DF] w-full max-w-sm animate-fade-in text-center">
           {/* Visual Icon */}
           <div className="relative mx-auto flex h-20 w-20 items-center justify-center border border-[#2D2D2D] bg-[#1A1A1A] text-[#EBE6DF] rounded-[24px]">
