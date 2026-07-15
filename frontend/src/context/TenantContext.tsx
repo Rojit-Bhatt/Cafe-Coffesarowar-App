@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { apiRequest, setTenantSlug } from "../lib/api";
 
 export interface TenantBranding {
@@ -79,32 +80,24 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // already carries the X-Tenant-Slug header the public routes require.
   setTenantSlug(slug);
 
-  const [tenant, setTenant] = useState<Tenant | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  // A plain useQuery (no staleTime override) so it refetches on window focus
+  // and remount like the rest of the app's data hooks — branding/program/
+  // contact/events an admin edits mid-session now reach an already-open
+  // customer tab instead of requiring a hard reload.
+  const {
+    data: tenant,
+    isLoading,
+    isError,
+  } = useQuery<Tenant>({
+    queryKey: ["tenant", slug],
+    queryFn: async () => {
+      const res = await apiRequest<{ success: boolean; tenant: Tenant }>("/api/tenant");
+      return res.tenant;
+    },
+    enabled: Boolean(slug),
+  });
 
-  useEffect(() => {
-    setTenantSlug(slug);
-    let active = true;
-    setIsLoading(true);
-    setNotFound(false);
-
-    apiRequest<{ success: boolean; tenant: Tenant }>("/api/tenant")
-      .then((res) => {
-        if (!active) return;
-        setTenant(res.tenant);
-        setIsLoading(false);
-      })
-      .catch(() => {
-        if (!active) return;
-        setNotFound(true);
-        setIsLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [slug]);
+  const notFound = isError;
 
   const brand = tenant?.branding?.primaryColor || "#B5533C";
   const brandDeep = darken(brand);
