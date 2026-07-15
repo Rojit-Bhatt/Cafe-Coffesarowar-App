@@ -1,9 +1,9 @@
 import { Coffee, MailWarning, MapPin, Phone as PhoneIcon, Mail, Clock, Instagram, Facebook, Twitter, Calendar } from "lucide-react";
 import toast from "react-hot-toast";
-import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { useTenant } from "../context/TenantContext";
 import { useStampCard } from "../hooks/useStampCard";
 import { useCustomerMenu } from "../hooks/useCustomerMenu";
+import { useAccount } from "../hooks/useAccount";
 import { apiRequest } from "../lib/api";
 import { PunchCard } from "../components/customer/PunchCard";
 
@@ -19,8 +19,8 @@ function formatEventDate(iso: string): string {
 
 // Rendered inside CustomerLayout (phone shell + bottom nav). Content only.
 export default function CustomerDashboard() {
-  const { user } = useCustomerAuth();
-  const unverified = user?.emailVerified === false;
+  const { data: account } = useAccount("customer");
+  const unverified = account?.emailVerified === false;
   const { tenant } = useTenant();
   const { data: stampData, isLoading: cardLoading } = useStampCard();
 
@@ -90,7 +90,7 @@ export default function CustomerDashboard() {
                 try {
                   await apiRequest("/api/auth/resend-verification", {
                     method: "POST",
-                    body: { email: user?.email },
+                    body: { email: account?.email },
                   });
                   toast.success("Verification email resent.");
                 } catch {
