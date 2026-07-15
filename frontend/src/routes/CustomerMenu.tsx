@@ -14,7 +14,7 @@ export default function CustomerMenu() {
 
   return (
     <div className="px-5 py-6">
-      <h1 className="font-display text-2xl font-extrabold text-[var(--ink)]">Menu</h1>
+      <h1 className="font-display text-2xl font-bold text-[var(--ink)]">Menu</h1>
       <p className="mb-5 text-[13px] text-[var(--muted)]">{tenant?.name}</p>
 
       {isLoading ? (

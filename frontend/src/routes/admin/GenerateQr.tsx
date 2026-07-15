@@ -69,7 +69,7 @@ export default function GenerateQr() {
       <h1 className="font-display text-2xl font-extrabold text-[var(--ink)]">Stamp code</h1>
       <p className="mb-6 mt-1 text-[var(--muted)]">Have the customer scan this to earn one stamp.</p>
 
-      <div className="rounded-[26px] border border-[var(--line)] bg-[var(--surface)] p-8 shadow-sm">
+      <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-8 shadow-ambient">
         <label className="mb-4 block text-left">
           <span className="mb-1.5 block text-sm font-bold text-[var(--ink)]">Bill amount</span>
           <input

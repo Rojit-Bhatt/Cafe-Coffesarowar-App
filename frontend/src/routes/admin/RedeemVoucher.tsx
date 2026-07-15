@@ -41,7 +41,7 @@ export default function RedeemVoucher() {
       </h1>
       <p className="mb-6 mt-1 text-center text-[var(--muted)]">Enter the customer’s code.</p>
 
-      <div className="rounded-[24px] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm">
+      <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-ambient">
         <div className="flex gap-2.5">
           <input
             value={code}

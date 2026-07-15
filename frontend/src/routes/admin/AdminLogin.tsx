@@ -69,7 +69,7 @@ export default function AdminLogin() {
           <p className="mt-1 text-sm text-[var(--muted)]">Barista &amp; owner console</p>
         </div>
 
-        <div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm">
+        <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-ambient">
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <div className="flex items-center gap-3 rounded-[12px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3.5 focus-within:border-[var(--brand)]">
               <Mail className="h-4 w-4 text-[var(--soft)]" />

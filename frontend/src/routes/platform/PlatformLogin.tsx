@@ -59,7 +59,7 @@ export default function PlatformLogin() {
           <p className="mt-1 text-sm text-[var(--muted)]">Sign in to your control panel</p>
         </div>
 
-        <div className="rounded-[22px] border border-[var(--line)] bg-[var(--surface)] p-6 shadow-sm">
+        <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 shadow-ambient">
           <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3">
             <input
               type="email"
