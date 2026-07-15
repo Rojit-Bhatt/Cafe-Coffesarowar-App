@@ -8,7 +8,7 @@ A **multi-tenant white-label loyalty SaaS** (the "Druto" model). The platform ow
 
 The core loyalty loop: customer registers (scoped to a tenant) → scans the barista's 30s single-use QR → earns 1 stamp (per-tenant cooldown) → at the tenant's `stampsRequired` threshold, a reward voucher auto-generates and the stamp balance resets → barista redeems the voucher.
 
-**Migration state:** backend and frontend are both multi-tenant. `App.tsx` routes `/:slug/*` through `TenantProvider`; `lib/api.ts` sends `X-Tenant-Slug` on every request (`setTenantSlug` from the URL). Platform, business-admin, and customer consoles are built. Remaining: customer menu/profile/activity screens, deploy (Vercel + Atlas).
+**Migration state:** backend and frontend are both multi-tenant. `App.tsx` routes `/:slug/*` through `TenantProvider`; `lib/api.ts` sends `X-Tenant-Slug` on every request (`setTenantSlug` from the URL). Platform, business-admin, and customer consoles (dashboard, wallet, menu, settings) are all built. `.env.example` files document every required var. Remaining: deploy (Vercel + Atlas), LAN HTTPS for on-phone testing.
 
 **Stale docs:** `docs/00-overview.md` and `docs/01-project-rules.md` describe the OLD single-cafe app and explicitly list multi-tenancy as out-of-scope. That is obsolete — the product pivoted. Trust the code over those docs. The governance rules in `docs/01` (thin controllers, service-layer logic, no unapproved deps) still apply.
 
@@ -26,13 +26,13 @@ Backend (`cd backend`):
 
 ```bash
 npm run dev              # node --watch server.js
-npm test                 # integration-qa + voucher + multi-tenant-isolation
+npm test                 # chained run of every tests/*.js suite (see package.json)
 npm run test:integration # single suite
 npm run test:voucher
 npm run test:isolation   # the key cross-tenant leakage test
 ```
 
-Tests are plain `node tests/*.js` scripts (no framework) that boot against the in-memory mock DB. Run one directly: `node backend/tests/multi-tenant-isolation.js`.
+Tests are plain `node tests/*.js` scripts (no framework) that boot against the in-memory mock DB. Run one directly: `node backend/tests/multi-tenant-isolation.js`. New suites must be added to `package.json`'s `test` script's chain to run in CI/`npm test`.
 
 ## Zero-config dev DB
 
