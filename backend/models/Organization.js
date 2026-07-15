@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { DEFAULT_PROGRAM } = require("../config/platform");
+const { DEFAULT_PROGRAM, BUSINESS_CATEGORIES } = require("../config/platform");
 
 // A tenant. Each business onboarded onto the platform is one Organization.
 // All loyalty data (users, stamp cards, vouchers, tokens, menu) is scoped to
@@ -10,6 +10,8 @@ const OrganizationSchema = new mongoose.Schema({
   slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
   name: { type: String, required: true, trim: true },
   status: { type: String, enum: ["active", "suspended"], default: "active" },
+  // Powers the customer-facing /explore directory's filter pills.
+  category: { type: String, enum: BUSINESS_CATEGORIES, default: "other" },
 
   // White-label branding the business admin controls.
   branding: {

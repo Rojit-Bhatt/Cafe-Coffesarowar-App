@@ -4,7 +4,7 @@ const User = require("../models/User");
 const StampClaimEvent = require("../models/StampClaimEvent");
 const Voucher = require("../models/Voucher");
 const { generateAuthToken } = require("../utils/tokenUtils");
-const { DEFAULT_PROGRAM } = require("../config/platform");
+const { DEFAULT_PROGRAM, BUSINESS_CATEGORIES } = require("../config/platform");
 const { sendVerifyEmail } = require("./authService");
 
 const SALT_ROUNDS = 10;
@@ -50,6 +50,7 @@ const buildBusinessStats = async (org) => {
     name: org.name,
     slug: org.slug,
     status: org.status,
+    category: org.category,
     branding: org.branding,
     menuEnabled: org.menuEnabled,
     customersCount,
@@ -103,7 +104,7 @@ const listBusinesses = async () => {
   };
 };
 
-const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword }) => {
+const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword, category }) => {
   if (!name || !slug || !adminName || !adminEmail || !adminPassword) {
     throw createHttpError(
       "name, slug, adminName, adminEmail, and adminPassword are required.",
@@ -123,9 +124,14 @@ const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword
     throw createHttpError("A business with this slug already exists.", 409);
   }
 
+  // Onboarding shouldn't hard-fail over a bad/missing category — fall back
+  // to the safe default instead of throwing.
+  const safeCategory = BUSINESS_CATEGORIES.includes(category) ? category : "other";
+
   const organization = await Organization.create({
     name: name.trim(),
     slug: normalizedSlug,
+    category: safeCategory,
     branding: { ...DEFAULT_BRANDING },
     program: { ...DEFAULT_PROGRAM }
   });

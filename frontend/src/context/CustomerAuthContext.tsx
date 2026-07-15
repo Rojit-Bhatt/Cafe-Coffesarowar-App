@@ -53,7 +53,17 @@ const CustomerAuthContext = createContext<CustomerAuthContextType | undefined>(u
 export function CustomerAuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [globalAccount, setGlobalAccount] = useState<GlobalAccount | null>(null);
+  // Lazy synchronous read so a slug-less page (no TenantSessionSync mounted
+  // to hydrate this from ensureTenantSession) still sees a correct value on
+  // first render, e.g. GlobalCustomerLayout's guard on /explore.
+  const [globalAccount, setGlobalAccount] = useState<GlobalAccount | null>(() => {
+    try {
+      const raw = localStorage.getItem("customer_global_account");
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const persistTenant = (t: string, u: User) => {

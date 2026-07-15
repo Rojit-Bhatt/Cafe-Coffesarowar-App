@@ -12,6 +12,7 @@ import { AdminGuard } from './components/admin/AdminGuard';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { PlatformLayout } from './components/platform/PlatformLayout';
 import { CustomerLayout } from './components/customer/CustomerLayout';
+import { GlobalCustomerLayout } from './components/customer/GlobalCustomerLayout';
 import { TenantSessionSync } from './components/customer/TenantSessionSync';
 
 const queryClient = new QueryClient();
@@ -19,6 +20,10 @@ const queryClient = new QueryClient();
 // Lazy load pages for route-based code splitting
 const BusinessLanding = lazy(() => import('./routes/BusinessLanding'));
 const FindBusiness = lazy(() => import('./routes/FindBusiness'));
+const GlobalCustomerLogin = lazy(() => import('./routes/GlobalCustomerLogin'));
+const GlobalCustomerRegister = lazy(() => import('./routes/GlobalCustomerRegister'));
+const Explore = lazy(() => import('./routes/Explore'));
+const ExploreMine = lazy(() => import('./routes/ExploreMine'));
 const CustomerLogin = lazy(() => import('./routes/CustomerLogin'));
 const CustomerRegister = lazy(() => import('./routes/CustomerRegister'));
 const CustomerDashboard = lazy(() => import('./routes/CustomerDashboard'));
@@ -56,125 +61,146 @@ const NotFound = lazy(() => import('./routes/NotFound'));
 // Wraps every /:slug/* route in the tenant context (fetches branding + program,
 // themes the subtree, sends X-Tenant-Slug). Renders child routes via <Outlet/>.
 function TenantScope() {
-  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
-  const tree = (
+  return (
     <TenantProvider>
       <TenantSessionSync />
       <Outlet />
     </TenantProvider>
   );
-  // Only mount the Google provider when a client id is configured, so dev
-  // without one still runs (the Google button hides itself in that case).
-  return clientId ? <GoogleOAuthProvider clientId={clientId}>{tree}</GoogleOAuthProvider> : tree;
 }
 
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
+
 export default function App() {
+  const routes = (
+    <BrowserRouter>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--ink)]">
+            <div className="text-xs font-bold uppercase tracking-[0.2em] animate-pulse">
+              Loading…
+            </div>
+          </div>
+        }
+      >
+        <Routes>
+          {/* Platform (SaaS owner) — unscoped, maroon accent. */}
+          <Route path="/" element={<PlatformLanding />} />
+          <Route path="/platform/login" element={<PlatformLogin />} />
+          {/* Slug-less "which business?" lookup — resolves a typed
+              business name to its /:slug before handing off to the
+              tenant's admin login. Customer login is genuinely
+              global instead (see below) — no business lookup step. */}
+          <Route path="/business-login" element={<FindBusiness intent="admin" />} />
+          {/* Global customer identity: one CustomerAccount works at
+              every tenant, so login/register/the /explore home are
+              all slug-less — no tenant context until a business is
+              actually entered. */}
+          <Route path="/customer-login" element={<GlobalCustomerLogin />} />
+          <Route path="/customer-register" element={<GlobalCustomerRegister />} />
+          <Route element={<GlobalCustomerLayout />}>
+            <Route path="/explore" element={<Explore />} />
+            <Route path="/explore/mine" element={<ExploreMine />} />
+          </Route>
+          {/* Global customer-account verification — slug-less, since
+              CustomerAccount identity isn't tenant-scoped. */}
+          <Route path="/verify-email" element={<GlobalVerifyEmail />} />
+          <Route path="/platform" element={<PlatformLayout />}>
+            <Route index element={<Businesses />} />
+            <Route path="onboard" element={<OnboardBusiness />} />
+            <Route path="business/:id" element={<BusinessDetail />} />
+            <Route path="settings" element={<PlatformSettings />} />
+            <Route path="contact" element={<PlatformContact />} />
+          </Route>
+
+          {/* Tenant-scoped experiences. */}
+          <Route path="/:slug" element={<TenantScope />}>
+            <Route index element={<BusinessLanding />} />
+            <Route path="login" element={<CustomerLogin />} />
+            <Route path="register" element={<CustomerRegister />} />
+            <Route path="claim" element={<ClaimLanding />} />
+            <Route path="verify-email" element={<VerifyEmail />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+
+            {/* Authenticated customer app (phone shell + bottom nav). */}
+            <Route element={<CustomerLayout />}>
+              <Route path="dashboard" element={<CustomerDashboard />} />
+              <Route path="wallet" element={<CustomerWallet />} />
+              <Route path="menu" element={<CustomerMenu />} />
+              <Route path="settings" element={<CustomerSettings />} />
+            </Route>
+
+            {/* Business admin console. */}
+            <Route path="admin/login" element={<AdminLogin />} />
+            <Route
+              path="admin"
+              element={
+                <AdminGuard>
+                  <AdminLayout />
+                </AdminGuard>
+              }
+            >
+              <Route index element={<AdminOverview />} />
+              <Route path="generate" element={<GenerateQr />} />
+              <Route path="redeem" element={<RedeemVoucher />} />
+              <Route path="customers" element={<AdminCustomers />} />
+              <Route path="customers/:id" element={<AdminCustomerDetail />} />
+              <Route path="program" element={<StampProgram />} />
+              <Route path="branding" element={<Branding />} />
+              <Route path="contact" element={<AdminContact />} />
+              <Route path="menu" element={<MenuManagement />} />
+              <Route path="events" element={<AdminEvents />} />
+              <Route path="settings" element={<AdminSettings />} />
+              <Route path="reports/summary" element={<AdminReportsSummary />} />
+              <Route path="reports/customers" element={<AdminReportsCustomers />} />
+            </Route>
+          </Route>
+
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
+
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <PlatformAuthProvider>
-        <AdminAuthProvider>
-          <CustomerAuthProvider>
-            <BrowserRouter>
-              <Suspense
-                fallback={
-                  <div className="flex min-h-screen items-center justify-center bg-[var(--bg)] text-[var(--ink)]">
-                    <div className="text-xs font-bold uppercase tracking-[0.2em] animate-pulse">
-                      Loading…
-                    </div>
-                  </div>
-                }
-              >
-                <Routes>
-                  {/* Platform (SaaS owner) — unscoped, maroon accent. */}
-                  <Route path="/" element={<PlatformLanding />} />
-                  <Route path="/platform/login" element={<PlatformLogin />} />
-                  {/* Slug-less "which business?" lookup — resolves a typed
-                      business name to its /:slug before handing off to that
-                      tenant's actual (customer or admin) login. */}
-                  <Route path="/business-login" element={<FindBusiness intent="admin" />} />
-                  <Route path="/customer-login" element={<FindBusiness intent="customer" />} />
-                  {/* Global customer-account verification — slug-less, since
-                      CustomerAccount identity isn't tenant-scoped. */}
-                  <Route path="/verify-email" element={<GlobalVerifyEmail />} />
-                  <Route path="/platform" element={<PlatformLayout />}>
-                    <Route index element={<Businesses />} />
-                    <Route path="onboard" element={<OnboardBusiness />} />
-                    <Route path="business/:id" element={<BusinessDetail />} />
-                    <Route path="settings" element={<PlatformSettings />} />
-                    <Route path="contact" element={<PlatformContact />} />
-                  </Route>
-
-                  {/* Tenant-scoped experiences. */}
-                  <Route path="/:slug" element={<TenantScope />}>
-                    <Route index element={<BusinessLanding />} />
-                    <Route path="login" element={<CustomerLogin />} />
-                    <Route path="register" element={<CustomerRegister />} />
-                    <Route path="claim" element={<ClaimLanding />} />
-                    <Route path="verify-email" element={<VerifyEmail />} />
-                    <Route path="forgot-password" element={<ForgotPassword />} />
-                    <Route path="reset-password" element={<ResetPassword />} />
-
-                    {/* Authenticated customer app (phone shell + bottom nav). */}
-                    <Route element={<CustomerLayout />}>
-                      <Route path="dashboard" element={<CustomerDashboard />} />
-                      <Route path="wallet" element={<CustomerWallet />} />
-                      <Route path="menu" element={<CustomerMenu />} />
-                      <Route path="settings" element={<CustomerSettings />} />
-                    </Route>
-
-                    {/* Business admin console. */}
-                    <Route path="admin/login" element={<AdminLogin />} />
-                    <Route
-                      path="admin"
-                      element={
-                        <AdminGuard>
-                          <AdminLayout />
-                        </AdminGuard>
-                      }
-                    >
-                      <Route index element={<AdminOverview />} />
-                      <Route path="generate" element={<GenerateQr />} />
-                      <Route path="redeem" element={<RedeemVoucher />} />
-                      <Route path="customers" element={<AdminCustomers />} />
-                      <Route path="customers/:id" element={<AdminCustomerDetail />} />
-                      <Route path="program" element={<StampProgram />} />
-                      <Route path="branding" element={<Branding />} />
-                      <Route path="contact" element={<AdminContact />} />
-                      <Route path="menu" element={<MenuManagement />} />
-                      <Route path="events" element={<AdminEvents />} />
-                      <Route path="settings" element={<AdminSettings />} />
-                      <Route path="reports/summary" element={<AdminReportsSummary />} />
-                      <Route path="reports/customers" element={<AdminReportsCustomers />} />
-                    </Route>
-                  </Route>
-
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </Suspense>
-            </BrowserRouter>
-            <Toaster
-              position="bottom-center"
-              toastOptions={{
-                style: {
-                  background: "var(--surface)",
-                  color: "var(--ink)",
-                  border: "1px solid var(--line)",
-                  borderRadius: "13px",
-                  padding: "12px 16px",
-                  fontSize: "14px",
-                  boxShadow: "0 12px 28px -12px rgba(36,30,27,0.18)",
-                },
-                success: {
-                  iconTheme: { primary: "var(--ok)", secondary: "#fff" },
-                },
-                error: {
-                  iconTheme: { primary: "var(--err)", secondary: "#fff" },
-                },
-              }}
-            />
-          </CustomerAuthProvider>
-        </AdminAuthProvider>
+          <AdminAuthProvider>
+            <CustomerAuthProvider>
+              {/* Single global provider — Google OAuth is one client id for
+                  the whole app, not per-tenant, so every surface (tenant
+                  pages and the slug-less global customer pages) shares it.
+                  Only mounted when a client id is configured, so dev without
+                  one still runs (Google buttons hide themselves). */}
+              {GOOGLE_CLIENT_ID ? (
+                <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>{routes}</GoogleOAuthProvider>
+              ) : (
+                routes
+              )}
+              <Toaster
+                position="bottom-center"
+                toastOptions={{
+                  style: {
+                    background: "var(--surface)",
+                    color: "var(--ink)",
+                    border: "1px solid var(--line)",
+                    borderRadius: "13px",
+                    padding: "12px 16px",
+                    fontSize: "14px",
+                    boxShadow: "0 12px 28px -12px rgba(36,30,27,0.18)",
+                  },
+                  success: {
+                    iconTheme: { primary: "var(--ok)", secondary: "#fff" },
+                  },
+                  error: {
+                    iconTheme: { primary: "var(--err)", secondary: "#fff" },
+                  },
+                }}
+              />
+            </CustomerAuthProvider>
+          </AdminAuthProvider>
         </PlatformAuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>

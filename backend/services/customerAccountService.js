@@ -4,6 +4,9 @@ const { OAuth2Client } = require("google-auth-library");
 const CustomerAccount = require("../models/CustomerAccount");
 const AccountVerificationToken = require("../models/AccountVerificationToken");
 const User = require("../models/User");
+const Organization = require("../models/Organization");
+const StampCard = require("../models/StampCard");
+const Voucher = require("../models/Voucher");
 const { ensureUserStampCard, formatAuthPayload } = require("./authService");
 const { generateGlobalSessionToken } = require("../utils/tokenUtils");
 const { sendEmail } = require("./emailService");
@@ -352,6 +355,52 @@ const enterTenant = async ({ customerAccountId, organizationId }) => {
   return formatAuthPayload(membershipUser);
 };
 
+// Every business this CustomerAccount already has a membership at, with
+// real per-tenant stamp/voucher progress — powers the "My Businesses" tab.
+// User.find({customerAccountId}) has no organizationId filter, same
+// cross-tenant lookup pattern already used by completeProfile/
+// verifyAccountEmail above.
+const getMyTenants = async ({ customerAccountId }) => {
+  const memberships = await User.find({ customerAccountId, role: "customer" });
+
+  const rows = await Promise.all(
+    memberships.map(async (membership) => {
+      const org = await Organization.findOne({ _id: membership.organizationId });
+      if (!org || org.status !== "active") return null;
+
+      const stampCard = await StampCard.findOne({
+        userId: membership._id,
+        organizationId: membership.organizationId
+      });
+      const validVoucherCount = (
+        await Voucher.find({
+          userId: membership._id,
+          organizationId: membership.organizationId,
+          isValid: true
+        })
+      ).length;
+
+      return {
+        organizationId: org._id.toString(),
+        slug: org.slug,
+        name: org.name,
+        branding: {
+          logoUrl: org.branding.logoUrl,
+          bannerUrl: org.branding.bannerUrl,
+          primaryColor: org.branding.primaryColor
+        },
+        stampsEarned: stampCard ? stampCard.stampsEarned : 0,
+        stampsRequired: org.program.stampsRequired,
+        rewardTitle: org.program.rewardTitle,
+        validVoucherCount,
+        lastStampedAt: stampCard ? stampCard.lastStampedAt : null
+      };
+    })
+  );
+
+  return { success: true, memberships: rows.filter(Boolean) };
+};
+
 module.exports = {
   registerAccount,
   loginAccount,
@@ -362,5 +411,6 @@ module.exports = {
   forgotPassword,
   resetPassword,
   enterTenant,
-  ensureMembership
+  ensureMembership,
+  getMyTenants
 };

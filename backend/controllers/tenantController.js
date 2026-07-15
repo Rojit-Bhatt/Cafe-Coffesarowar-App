@@ -1,6 +1,7 @@
 const Organization = require("../models/Organization");
 const User = require("../models/User");
 const { getUpcomingForOrg } = require("../services/eventService");
+const { BUSINESS_CATEGORIES } = require("../config/platform");
 
 const createHttpError = (message, statusCode) => {
   const error = new Error(message);
@@ -19,6 +20,7 @@ const getPublicTenant = async (req, res, next) => {
         id: organization._id.toString(),
         name: organization.name,
         slug: organization.slug,
+        category: organization.category,
         branding: organization.branding,
         contact: organization.contact,
         upcomingEvents,
@@ -51,6 +53,7 @@ const getMySettings = async (req, res, next) => {
         name: organization.name,
         slug: organization.slug,
         status: organization.status,
+        category: organization.category,
         branding: organization.branding,
         contact: organization.contact,
         adminEmailVerified: adminUser ? adminUser.emailVerified : false,
@@ -71,10 +74,14 @@ const updateMySettings = async (req, res, next) => {
       throw createHttpError("Business not found.", 404);
     }
 
-    const { name, branding, contact, program, menuEnabled } = req.body;
+    const { name, branding, contact, program, menuEnabled, category } = req.body;
 
     if (name !== undefined) {
       organization.name = name.trim();
+    }
+
+    if (category !== undefined && BUSINESS_CATEGORIES.includes(category)) {
+      organization.category = category;
     }
 
     if (branding !== undefined && typeof branding === "object") {
@@ -110,6 +117,7 @@ const updateMySettings = async (req, res, next) => {
         name: organization.name,
         slug: organization.slug,
         status: organization.status,
+        category: organization.category,
         branding: organization.branding,
         contact: organization.contact,
         program: organization.program,

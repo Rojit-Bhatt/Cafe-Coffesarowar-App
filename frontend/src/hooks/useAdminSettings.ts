@@ -1,6 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
 
+// Mirrors backend/config/platform.js's BUSINESS_CATEGORIES.
+export const BUSINESS_CATEGORIES = ["cafe", "restaurant", "bakery", "salon", "gym", "retail", "other"] as const;
+export type BusinessCategory = (typeof BUSINESS_CATEGORIES)[number];
+
 export interface AdminBranding {
   tagline: string;
   logoUrl: string;
@@ -35,6 +39,7 @@ export interface AdminSettings {
   name: string;
   slug: string;
   status: "active" | "suspended";
+  category: BusinessCategory;
   branding: AdminBranding;
   contact: AdminContact;
   adminEmailVerified: boolean;
@@ -44,6 +49,7 @@ export interface AdminSettings {
 
 export interface AdminSettingsPatch {
   name?: string;
+  category?: BusinessCategory;
   branding?: Partial<AdminBranding>;
   contact?: Partial<AdminContact>;
   program?: Partial<AdminProgram>;

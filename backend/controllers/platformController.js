@@ -31,13 +31,14 @@ const getBusinesses = async (req, res, next) => {
 
 const postBusiness = async (req, res, next) => {
   try {
-    const { name, slug, adminName, adminEmail, adminPassword } = req.body;
+    const { name, slug, adminName, adminEmail, adminPassword, category } = req.body;
     const result = await createBusiness({
       name,
       slug,
       adminName,
       adminEmail,
-      adminPassword
+      adminPassword,
+      category
     });
     res.status(201).json(result);
   } catch (error) {

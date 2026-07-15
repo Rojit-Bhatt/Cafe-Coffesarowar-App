@@ -12,7 +12,13 @@ const DEFAULT_PROGRAM = {
   minBillAmount: 0
 };
 
+// The fixed set of business categories a tenant can be filed under, used for
+// the customer-facing /explore directory's filter pills. "other" is the safe
+// default for a business that hasn't set one.
+const BUSINESS_CATEGORIES = ["cafe", "restaurant", "bakery", "salon", "gym", "retail", "other"];
+
 module.exports = {
   PLATFORM_NAME,
-  DEFAULT_PROGRAM
+  DEFAULT_PROGRAM,
+  BUSINESS_CATEGORIES
 };

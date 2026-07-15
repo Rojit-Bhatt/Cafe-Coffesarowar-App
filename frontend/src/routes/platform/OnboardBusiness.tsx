@@ -5,6 +5,17 @@ import { Check, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../lib/api";
 import { PLATFORM_NAME } from "../../lib/platform";
+import { BUSINESS_CATEGORIES, type BusinessCategory } from "../../hooks/useAdminSettings";
+
+const CATEGORY_LABELS: Record<BusinessCategory, string> = {
+  cafe: "Cafe",
+  restaurant: "Restaurant",
+  bakery: "Bakery",
+  salon: "Salon",
+  gym: "Gym",
+  retail: "Retail",
+  other: "Other",
+};
 
 const slugify = (s: string) =>
   s.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
@@ -19,6 +30,7 @@ export default function OnboardBusiness() {
   const [form, setForm] = useState({
     name: "",
     slug: "",
+    category: "other" as BusinessCategory,
     adminName: "",
     adminEmail: "",
     adminPassword: "",
@@ -28,7 +40,8 @@ export default function OnboardBusiness() {
   const [done, setDone] = useState<CreatedBusiness | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = (k: Exclude<keyof typeof form, "category">, v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
 
   const onName = (v: string) =>
     setForm((f) => ({ ...f, name: v, slug: slugEdited ? f.slug : slugify(v) }));
@@ -55,7 +68,7 @@ export default function OnboardBusiness() {
   };
 
   const reset = () => {
-    setForm({ name: "", slug: "", adminName: "", adminEmail: "", adminPassword: "" });
+    setForm({ name: "", slug: "", category: "other", adminName: "", adminEmail: "", adminPassword: "" });
     setSlugEdited(false);
     setDone(null);
   };
@@ -150,6 +163,18 @@ export default function OnboardBusiness() {
               className="flex-1 bg-transparent px-1 py-3 font-mono text-sm focus:outline-none"
             />
           </div>
+          <Label>Category</Label>
+          <select
+            value={form.category}
+            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as BusinessCategory }))}
+            className="w-full rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--plat)] focus:outline-none"
+          >
+            {BUSINESS_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {CATEGORY_LABELS[c]}
+              </option>
+            ))}
+          </select>
         </Card>
 
         <Card title="Business admin login">

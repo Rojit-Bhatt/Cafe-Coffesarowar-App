@@ -1,7 +1,7 @@
 const {
   registerAccount, loginAccount, authenticateWithGoogle,
   verifyAccountEmail, resendVerification, forgotPassword, resetPassword,
-  completeProfile, enterTenant
+  completeProfile, enterTenant, getMyTenants
 } = require("../services/customerAccountService");
 
 const register = async (req, res, next) => {
@@ -94,6 +94,15 @@ const enterTenantController = async (req, res, next) => {
   }
 };
 
+const getMyTenantsController = async (req, res, next) => {
+  try {
+    const result = await getMyTenants({ customerAccountId: req.customerAccount.id });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -103,5 +112,6 @@ module.exports = {
   forgotPassword: forgotPasswordController,
   resetPassword: resetPasswordController,
   completeProfile: completeProfileController,
-  enterTenant: enterTenantController
+  enterTenant: enterTenantController,
+  getMyTenants: getMyTenantsController
 };

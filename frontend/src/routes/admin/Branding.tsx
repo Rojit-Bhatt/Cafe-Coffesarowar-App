@@ -3,11 +3,23 @@ import toast from "react-hot-toast";
 import {
   useAdminSettings,
   useUpdateAdminSettings,
+  BUSINESS_CATEGORIES,
   type AdminBranding,
+  type BusinessCategory,
 } from "../../hooks/useAdminSettings";
 import { Skeleton } from "../../components/ui/skeleton";
 
 const SWATCHES = ["#B5533C", "#8B2635", "#7A5CA8", "#2F7E8C", "#C9852B", "#C24B7A", "#3F7A5C", "#2B2B2B"];
+
+const CATEGORY_LABELS: Record<BusinessCategory, string> = {
+  cafe: "Cafe",
+  restaurant: "Restaurant",
+  bakery: "Bakery",
+  salon: "Salon",
+  gym: "Gym",
+  retail: "Retail",
+  other: "Other",
+};
 
 function darken(hex: string, amount = 0.22): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
@@ -23,11 +35,13 @@ export default function Branding() {
   const { data: settings, isLoading } = useAdminSettings();
   const update = useUpdateAdminSettings();
   const [name, setName] = useState("");
+  const [category, setCategory] = useState<BusinessCategory>("other");
   const [brand, setBrand] = useState<AdminBranding | null>(null);
 
   useEffect(() => {
     if (settings && !brand) {
       setName(settings.name);
+      setCategory(settings.category);
       setBrand(settings.branding);
     }
   }, [settings, brand]);
@@ -76,7 +90,7 @@ export default function Branding() {
 
   const save = async () => {
     try {
-      await update.mutateAsync({ name, branding: brand });
+      await update.mutateAsync({ name, category, branding: brand });
       toast.success("Branding saved");
     } catch (err) {
       toast.error((err as Error).message || "Failed to save.");
@@ -101,6 +115,19 @@ export default function Branding() {
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--brand)] focus:outline-none"
             />
+          </Field>
+          <Field label="Category">
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as BusinessCategory)}
+              className="w-full rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--brand)] focus:outline-none"
+            >
+              {BUSINESS_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {CATEGORY_LABELS[c]}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Tagline">
             <input
