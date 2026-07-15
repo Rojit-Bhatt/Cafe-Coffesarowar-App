@@ -137,7 +137,26 @@ export default function App() {
                 </Routes>
               </Suspense>
             </BrowserRouter>
-            <Toaster position="bottom-center" />
+            <Toaster
+              position="bottom-center"
+              toastOptions={{
+                style: {
+                  background: "var(--surface)",
+                  color: "var(--ink)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "13px",
+                  padding: "12px 16px",
+                  fontSize: "14px",
+                  boxShadow: "0 12px 28px -12px rgba(36,30,27,0.18)",
+                },
+                success: {
+                  iconTheme: { primary: "var(--ok)", secondary: "#fff" },
+                },
+                error: {
+                  iconTheme: { primary: "var(--err)", secondary: "#fff" },
+                },
+              }}
+            />
           </CustomerAuthProvider>
         </AdminAuthProvider>
         </PlatformAuthProvider>
