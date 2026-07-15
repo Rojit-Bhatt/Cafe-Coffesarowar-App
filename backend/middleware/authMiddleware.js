@@ -1,4 +1,6 @@
 const { verifyAuthToken } = require("../utils/tokenUtils");
+const User = require("../models/User");
+const Organization = require("../models/Organization");
 
 const extractToken = (req) => {
   const authHeader = req.headers.authorization;
@@ -18,7 +20,7 @@ const extractToken = (req) => {
   return null;
 };
 
-const verifyToken = (req, _res, next) => {
+const verifyToken = async (req, _res, next) => {
   try {
     const token = extractToken(req);
 
@@ -34,6 +36,27 @@ const verifyToken = (req, _res, next) => {
       const error = new Error("Invalid token payload.");
       error.statusCode = 401;
       throw error;
+    }
+
+    // Re-verify against the DB on every request, so a demoted/deleted user or
+    // a suspended tenant's already-issued token stops working immediately
+    // instead of staying valid for the rest of its lifetime (JWT_EXPIRES_IN).
+    const user = await User.findOne({ _id: decoded.userId });
+
+    if (!user || user.role !== decoded.role) {
+      const error = new Error("Access denied. Token is no longer valid.");
+      error.statusCode = 401;
+      throw error;
+    }
+
+    if (decoded.organizationId) {
+      const organization = await Organization.findOne({ _id: decoded.organizationId });
+
+      if (!organization || organization.status === "suspended") {
+        const error = new Error("This business is suspended.");
+        error.statusCode = 401;
+        throw error;
+      }
     }
 
     req.user = {
