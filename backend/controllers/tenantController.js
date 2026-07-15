@@ -16,6 +16,7 @@ const getPublicTenant = async (req, res, next) => {
     res.status(200).json({
       success: true,
       tenant: {
+        id: organization._id.toString(),
         name: organization.name,
         slug: organization.slug,
         branding: organization.branding,

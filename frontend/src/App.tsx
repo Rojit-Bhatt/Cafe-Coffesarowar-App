@@ -12,6 +12,7 @@ import { AdminGuard } from './components/admin/AdminGuard';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { PlatformLayout } from './components/platform/PlatformLayout';
 import { CustomerLayout } from './components/customer/CustomerLayout';
+import { TenantSessionSync } from './components/customer/TenantSessionSync';
 
 const queryClient = new QueryClient();
 
@@ -23,6 +24,7 @@ const CustomerDashboard = lazy(() => import('./routes/CustomerDashboard'));
 const CustomerWallet = lazy(() => import('./routes/CustomerWallet'));
 const CustomerMenu = lazy(() => import('./routes/CustomerMenu'));
 const VerifyEmail = lazy(() => import('./routes/VerifyEmail'));
+const GlobalVerifyEmail = lazy(() => import('./routes/GlobalVerifyEmail'));
 const ForgotPassword = lazy(() => import('./routes/ForgotPassword'));
 const ResetPassword = lazy(() => import('./routes/ResetPassword'));
 const PlatformLanding = lazy(() => import('./routes/platform/PlatformLanding'));
@@ -54,6 +56,7 @@ function TenantScope() {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
   const tree = (
     <TenantProvider>
+      <TenantSessionSync />
       <Outlet />
     </TenantProvider>
   );
@@ -83,6 +86,9 @@ export default function App() {
                   {/* Platform (SaaS owner) — unscoped, maroon accent. */}
                   <Route path="/" element={<PlatformLanding />} />
                   <Route path="/platform/login" element={<PlatformLogin />} />
+                  {/* Global customer-account verification — slug-less, since
+                      CustomerAccount identity isn't tenant-scoped. */}
+                  <Route path="/verify-email" element={<GlobalVerifyEmail />} />
                   <Route path="/platform" element={<PlatformLayout />}>
                     <Route index element={<Businesses />} />
                     <Route path="onboard" element={<OnboardBusiness />} />
