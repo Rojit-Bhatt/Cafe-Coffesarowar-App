@@ -1,5 +1,5 @@
-import React, { createContext, useContext } from "react";
-import { useParams } from "react-router-dom";
+import React, { createContext, useContext, useRef } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest, setTenantSlug } from "../lib/api";
 
@@ -58,6 +58,7 @@ interface TenantContextValue {
   tenant: Tenant | null;
   isLoading: boolean;
   notFound: boolean;
+  suspended: boolean;
 }
 
 const TenantContext = createContext<TenantContextValue | undefined>(undefined);
@@ -76,6 +77,7 @@ function darken(hex: string, amount = 0.22): string {
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { slug = "" } = useParams();
+  const location = useLocation();
 
   // Set the slug synchronously so any request a child fires (e.g. login)
   // already carries the X-Tenant-Slug header the public routes require.
@@ -89,6 +91,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     data: tenant,
     isLoading,
     isError,
+    error,
   } = useQuery<Tenant>({
     queryKey: ["tenant", slug],
     queryFn: async () => {
@@ -98,12 +101,36 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     enabled: Boolean(slug),
   });
 
-  const notFound = isError;
+  const liveSuspended = (error as (Error & { code?: string }) | null)?.code === "TENANT_SUSPENDED";
+  // The admin console (/:slug/admin/*) has its own suspended-tenant handling
+  // (AdminGuard's blurred overlay) driven by its own /api/admin/settings
+  // fetch — it must render through here even though this tenant fetch also
+  // 403s, rather than being pre-empted by this component's own full-screen
+  // message meant for the customer-facing app.
+  const isAdminRoute = location.pathname.startsWith(`/${slug}/admin`);
 
   const brand = tenant?.branding?.primaryColor || "#8C5E45";
   const brandDeep = darken(brand);
 
-  if (isLoading) {
+  // Latched into a ref, not read live off isLoading/isError/tenant each
+  // render: this query intermittently passes through a transient state
+  // (isLoading:false, isError:false, no tenant yet) on a background
+  // refetch/remount, which is neither "loaded" nor a real error — reading
+  // that transient state live would flash the wrong full-screen message
+  // (typically the 404) in between genuinely-settled states. Only update
+  // the latch when the query is UNAMBIGUOUSLY loaded or UNAMBIGUOUSLY
+  // errored; otherwise keep whatever we last knew to be true.
+  const statusRef = useRef<"loading" | "ready" | "suspended" | "notfound">("loading");
+  if (tenant) {
+    statusRef.current = "ready";
+  } else if (isError) {
+    statusRef.current = liveSuspended ? "suspended" : "notfound";
+  }
+  const status = statusRef.current;
+  const suspended = status === "suspended";
+  const notFound = status === "notfound";
+
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg)]">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-[var(--brand)] border-t-transparent" />
@@ -111,7 +138,21 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (notFound || !tenant) {
+  if (suspended && !isAdminRoute) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--bg)] px-6 text-center">
+        <h2 className="font-display text-2xl font-bold text-[var(--ink)]">
+          Temporarily unavailable
+        </h2>
+        <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
+          <span className="font-mono">/{slug}</span> isn't accepting visitors right now. Please
+          check back later.
+        </p>
+      </div>
+    );
+  }
+
+  if (!isAdminRoute && notFound) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[var(--bg)] px-6 text-center">
         <div className="font-display text-[90px] font-extrabold leading-none text-[var(--plat-soft)]">
@@ -129,7 +170,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <TenantContext.Provider value={{ slug, tenant, isLoading, notFound }}>
+    <TenantContext.Provider value={{ slug, tenant: tenant ?? null, isLoading, notFound, suspended }}>
       <div style={{ ["--brand" as any]: brand, ["--brand-deep" as any]: brandDeep }}>
         {children}
       </div>
