@@ -171,7 +171,7 @@ const getBusiness = async (id) => {
   };
 };
 
-const updateBusiness = async (id, { name, status }) => {
+const updateBusiness = async (id, { name, category, status, adminEmail }) => {
   const organization = await Organization.findOne({ _id: id });
 
   if (!organization) {
@@ -182,10 +182,18 @@ const updateBusiness = async (id, { name, status }) => {
     throw createHttpError("status must be either 'active' or 'suspended'.", 400);
   }
 
+  if (category !== undefined && !BUSINESS_CATEGORIES.includes(category)) {
+    throw createHttpError("Not a valid category.", 400);
+  }
+
   const updates = {};
 
   if (name !== undefined) {
     updates.name = name.trim();
+  }
+
+  if (category !== undefined) {
+    updates.category = category;
   }
 
   if (status !== undefined) {
@@ -198,9 +206,39 @@ const updateBusiness = async (id, { name, status }) => {
     { new: true }
   );
 
+  let adminResult = null;
+
+  if (adminEmail !== undefined) {
+    const normalizedAdminEmail = normalizeEmail(adminEmail);
+    const adminUser = await User.findOne({ organizationId: id, role: "business_admin" });
+
+    if (!adminUser) {
+      throw createHttpError("This business has no admin account to update.", 404);
+    }
+
+    if (adminUser.email !== normalizedAdminEmail) {
+      const collision = await User.findOne({ organizationId: id, email: normalizedAdminEmail });
+      if (collision) {
+        throw createHttpError("That email is already in use for this business.", 409);
+      }
+
+      const updatedAdmin = await User.findOneAndUpdate(
+        { _id: adminUser._id },
+        { $set: { email: normalizedAdminEmail, emailVerified: false } },
+        { new: true }
+      );
+
+      await sendVerifyEmail(updatedAdmin, id, updatedOrganization.slug);
+      adminResult = { email: updatedAdmin.email };
+    } else {
+      adminResult = { email: adminUser.email };
+    }
+  }
+
   return {
     success: true,
-    business: await buildBusinessStats(updatedOrganization)
+    business: await buildBusinessStats(updatedOrganization),
+    ...(adminResult ? { admin: adminResult } : {})
   };
 };
 

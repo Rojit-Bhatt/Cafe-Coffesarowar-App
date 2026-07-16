@@ -59,8 +59,8 @@ const getBusinessById = async (req, res, next) => {
 const patchBusiness = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, status } = req.body;
-    const result = await updateBusiness(id, { name, status });
+    const { name, category, status, adminEmail } = req.body;
+    const result = await updateBusiness(id, { name, category, status, adminEmail });
     res.status(200).json(result);
   } catch (error) {
     next(error);
