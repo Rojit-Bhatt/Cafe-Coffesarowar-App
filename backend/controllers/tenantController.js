@@ -72,6 +72,11 @@ const getMySettings = async (req, res, next) => {
         adminEmailVerified: adminUser ? adminUser.emailVerified : false,
         program: organization.program,
         menuEnabled: organization.menuEnabled,
+        // Lets the admin console hide/show the Subscription nav item and
+        // route — a platform-onboarded business with no attached owner has
+        // no subscription to manage at all (GET /api/admin/subscription
+        // 404s for it), so that surface must not be shown as a dead end.
+        hasOwnerAccount: Boolean(organization.ownerAccountId),
         ...(subscriptionReminder ? { subscriptionReminder } : {})
       }
     });

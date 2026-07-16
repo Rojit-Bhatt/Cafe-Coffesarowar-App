@@ -11,11 +11,13 @@ const createHttpError = (message, statusCode, code) => {
   return error;
 };
 
-// Same shape/style as stampService's voucher codes — 4 random bytes, hex,
-// uppercased. Collision probability is negligible at this app's scale; a
-// findOne uniqueness check backstops it anyway (mock DB doesn't enforce
+// 8 random bytes (64 bits) rather than voucher-code-style 4 — a redeemed
+// key grants a real paid plan to whoever presents it first (unbound to any
+// specific owner at generation time), so brute-forcing the space needs a
+// wider margin than a single-tenant voucher code does. A findOne
+// uniqueness check backstops collisions anyway (mock DB doesn't enforce
 // `unique`, same caveat as every other global-uniqueness field here).
-const generateCode = () => `KEY-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
+const generateCode = () => `KEY-${crypto.randomBytes(8).toString("hex").toUpperCase()}`;
 
 const formatKey = (key) => ({
   id: key._id.toString(),
@@ -90,21 +92,39 @@ const redeemKey = async ({ code, ownerAccountId }) => {
   const key = await SubscriptionKey.findOne({ code: normalizedCode });
 
   if (!key) throw createHttpError("That key wasn't recognized.", 404);
-  if (key.status !== "unused") {
+
+  // Atomically flip unused -> redeemed FIRST, gated on the query itself
+  // still matching status:"unused" — this is the actual claim. Two
+  // concurrent redemptions of the same code (double-click, or the owner
+  // dashboard and a tenant-console tab both open) can both pass the plain
+  // findOne check above, but only one findOneAndUpdate with this predicate
+  // can ever return a document, so only one can proceed to applyPurchase.
+  // Without this, both would call applyPurchase and stack two activation
+  // periods from a single key.
+  const claimed = await SubscriptionKey.findOneAndUpdate(
+    { _id: key._id, status: "unused" },
+    { $set: { status: "redeemed", assignedToOwnerAccountId: ownerAccountId, redeemedAt: new Date() } },
+    { new: true }
+  );
+  if (!claimed) {
     throw createHttpError("That key has already been used or revoked.", 400);
   }
 
-  const plan = await getPlanBySlug(key.planSlug);
-  await assertPlanChangeAllowed(ownerAccountId, plan);
-
-  const subscription = await applyPurchase({ ownerAccountId, plan });
-
-  await SubscriptionKey.findOneAndUpdate(
-    { _id: key._id },
-    { $set: { status: "redeemed", assignedToOwnerAccountId: ownerAccountId, redeemedAt: new Date() } }
-  );
-
-  return { success: true, subscription };
+  try {
+    const plan = await getPlanBySlug(key.planSlug);
+    await assertPlanChangeAllowed(ownerAccountId, plan);
+    const subscription = await applyPurchase({ ownerAccountId, plan });
+    return { success: true, subscription };
+  } catch (error) {
+    // The claim succeeded but activation failed (e.g. downgrade-over-limit)
+    // — release the key back to unused rather than burning it on a
+    // rejected redemption.
+    await SubscriptionKey.findOneAndUpdate(
+      { _id: key._id },
+      { $set: { status: "unused", assignedToOwnerAccountId: null, redeemedAt: null } }
+    );
+    throw error;
+  }
 };
 
 // Resolves a tenant-scoped organizationId to the owner account that should

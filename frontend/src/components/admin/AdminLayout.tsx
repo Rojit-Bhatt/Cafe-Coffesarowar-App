@@ -49,14 +49,18 @@ const NAV: (NavLeaf | NavGroup)[] = [
   },
 ];
 
-const MANAGEMENT_NAV: NavLeaf[] = [
+const BASE_MANAGEMENT_NAV: NavLeaf[] = [
   { to: "program", label: "Stamp program", Icon: Stamp },
   { to: "branding", label: "Branding", Icon: Palette },
   { to: "contact", label: "Contact", Icon: Phone },
   { to: "menu", label: "Menu", Icon: UtensilsCrossed },
   { to: "events", label: "Events", Icon: Calendar },
-  { to: "subscription", label: "Subscription", Icon: CreditCard },
 ];
+// Only shown for a business with an attached owner account — a
+// platform-onboarded business with none has no subscription to manage at
+// all (GET /api/admin/subscription 404s for it), so this must not appear
+// as a dead end.
+const SUBSCRIPTION_NAV: NavLeaf = { to: "subscription", label: "Subscription", Icon: CreditCard };
 
 // Desktop business-admin console shell. Sidebar recolors from the tenant's
 // brand; content routes render in <Outlet/>.
@@ -79,6 +83,7 @@ export function AdminLayout() {
   const location = useLocation();
   const { user, logout } = useAdminAuth();
   const { data: settings } = useAdminSettings();
+  const managementNav = settings?.hasOwnerAccount ? [...BASE_MANAGEMENT_NAV, SUBSCRIPTION_NAV] : BASE_MANAGEMENT_NAV;
   const { data: account } = useAccount("admin");
 
   const name = settings?.name || "Business";
@@ -160,7 +165,7 @@ export function AdminLayout() {
           <div className="mb-1 mt-4 px-3.5 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
             Management
           </div>
-          {MANAGEMENT_NAV.map((item) => (
+          {managementNav.map((item) => (
             <NavLink key={item.to} to={item.to} className={navLinkClass}>
               <item.Icon className="h-4 w-4" />
               {item.label}

@@ -189,10 +189,25 @@ const resetOwnerPassword = async ({ token, password }) => {
   const account = await BusinessOwnerAccount.findOne({ _id: record.ownerAccountId });
   if (!account) throw createHttpError("Account not found.", 404);
 
-  account.password = await bcrypt.hash(password, SALT_ROUNDS);
+  const newHash = await bcrypt.hash(password, SALT_ROUNDS);
+  account.password = newHash;
   await account.save();
   record.usedAt = new Date();
   await record.save();
+
+  // createBusinessForOwner copies this account's password hash onto each
+  // owner-created business's business_admin row (so the same password also
+  // works at that tenant's own /:slug/admin/login, not just via
+  // enter-business) — a reset must propagate to every one of those copies,
+  // or the old (possibly-compromised) password keeps working there
+  // indefinitely even after the owner "changed" it. No updateMany in the
+  // mock DB — find+save loop, same pattern customerAccountService.completeProfile
+  // already uses to propagate a profile change across memberships.
+  const provisionedAdmins = await User.find({ ownerAccountId: account._id, role: "business_admin" });
+  for (const admin of provisionedAdmins) {
+    admin.password = newHash;
+    await admin.save();
+  }
 
   return { success: true, message: "Password updated. You can now log in." };
 };

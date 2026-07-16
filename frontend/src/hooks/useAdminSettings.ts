@@ -57,6 +57,10 @@ export interface AdminSettings {
   adminEmailVerified: boolean;
   program: AdminProgram;
   menuEnabled: boolean;
+  // False for a platform-onboarded business with no attached owner — the
+  // Subscription nav item/route must be hidden for it (there's nothing to
+  // show; GET /api/admin/subscription 404s).
+  hasOwnerAccount: boolean;
   // Only present when this business has an owner account attached AND
   // renewal is within the reminder window (see subscriptionService in the
   // backend) — absent otherwise, never a "no subscription" placeholder.

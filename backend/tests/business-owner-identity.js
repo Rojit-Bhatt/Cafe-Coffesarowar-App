@@ -117,6 +117,54 @@ async function main() {
     // versa — cross-check the type-disambiguation in tokenUtils.
     const globalTokenAsTenant = await api("/api/admin/settings", { token: ownerToken, slug: "coffesarowar" });
     check("global owner session token rejected by tenant-JWT-only route -> 401", globalTokenAsTenant.status === 401);
+
+    // 4. Password-reset propagation: createBusinessForOwner copies the
+    // owner's CURRENT password hash onto each new business's business_admin
+    // row (so the same password also works at direct tenant login, not just
+    // via enter-business). A later owner password reset must propagate to
+    // those copies too — otherwise a leaked old password keeps working at
+    // every owner-created business's /:slug/admin/login forever.
+    const pwdOwnerEmail = "pwdtest@test.com";
+    await api("/api/owner/register", {
+      method: "POST",
+      body: { name: "Pwd Test Owner", email: pwdOwnerEmail, password: "originalpass123", phone: "9800000003" },
+    });
+    const mintPwdVerify = await api("/__test__/mint-owner-token", { method: "POST", body: { email: pwdOwnerEmail, type: "email_verify" } });
+    await api(`/api/owner/verify-email?token=${mintPwdVerify.body.token}`);
+    const pwdOwnerLogin1 = await api("/api/owner/login", { method: "POST", body: { email: pwdOwnerEmail, password: "originalpass123" } });
+    const pwdOwnerToken = pwdOwnerLogin1.body.token;
+
+    const pwdSlug = `pwd-test-${Date.now()}`;
+    const createBiz = await api("/api/owner/businesses", {
+      method: "POST",
+      token: pwdOwnerToken,
+      body: { name: "Pwd Test Cafe", slug: pwdSlug, category: "cafe" },
+    });
+    check("password-test owner creates a business -> 201", createBiz.status === 201);
+
+    const tenantLoginOriginal = await api("/api/auth/login", {
+      method: "POST",
+      slug: pwdSlug,
+      body: { email: pwdOwnerEmail, password: "originalpass123" },
+    });
+    check("original owner password works at direct tenant login (copied hash)", tenantLoginOriginal.status === 200);
+
+    const mintPwdReset = await api("/__test__/mint-owner-token", { method: "POST", body: { email: pwdOwnerEmail, type: "password_reset" } });
+    await api("/api/owner/reset-password", { method: "POST", body: { token: mintPwdReset.body.token, password: "newpass456" } });
+
+    const tenantLoginOldAfterReset = await api("/api/auth/login", {
+      method: "POST",
+      slug: pwdSlug,
+      body: { email: pwdOwnerEmail, password: "originalpass123" },
+    });
+    check("OLD password no longer works at tenant login after owner reset (propagated)", tenantLoginOldAfterReset.status === 401);
+
+    const tenantLoginNewAfterReset = await api("/api/auth/login", {
+      method: "POST",
+      slug: pwdSlug,
+      body: { email: pwdOwnerEmail, password: "newpass456" },
+    });
+    check("NEW password works at tenant login after owner reset (propagated)", tenantLoginNewAfterReset.status === 200);
   } finally {
     stop();
   }

@@ -111,6 +111,7 @@ async function main() {
       token: platformToken,
     });
     check("owner revokes an unused key -> 200", revoked.status === 200 && revoked.body?.key?.status === "revoked");
+    check("revoked key has no assigned owner", revoked.body?.key?.assignedToOwnerAccountId === null);
 
     const redeemRevoked = await api("/api/owner/subscription/redeem-key", {
       method: "POST",
@@ -118,6 +119,22 @@ async function main() {
       body: { code: genToRevoke.body.key.code },
     });
     check("redeeming a revoked key -> 400", redeemRevoked.status === 400);
+
+    // 5b. Concurrent double-redemption of a single unused key: only one of
+    // two simultaneous requests may succeed (atomic claim in redeemKey).
+    const genForRace = await api("/api/platform/subscription-keys", {
+      method: "POST",
+      token: platformToken,
+      body: { planSlug: "basic" },
+    });
+    const tokenD = await registerVerifyLogin("subD@test.com");
+    const tokenE = await registerVerifyLogin("subE@test.com");
+    const [raceA, raceB] = await Promise.all([
+      api("/api/owner/subscription/redeem-key", { method: "POST", token: tokenD, body: { code: genForRace.body.key.code } }),
+      api("/api/owner/subscription/redeem-key", { method: "POST", token: tokenE, body: { code: genForRace.body.key.code } }),
+    ]);
+    const raceStatuses = [raceA.status, raceB.status].sort();
+    check("concurrent redemption: exactly one 200 and one 400", raceStatuses[0] === 200 && raceStatuses[1] === 400);
 
     // 7. Downgrade-over-limit: owner C creates 2 businesses (now has 1 from
     // no prior creation — create 2 fresh ones to reach 2, still <= 3), then
@@ -179,6 +196,40 @@ async function main() {
 
     const subCFinal = await api("/api/owner/subscription", { token: tokenC });
     check("owner C is now on pro (limit 6) after the tenant-console redemption", subCFinal.body?.subscription?.businessLimitAtPurchase === 6);
+
+    // 9. A platform-onboarded business with no attached owner has no
+    // subscription surface at all — /api/admin/subscription must 404, not
+    // silently pretend one exists.
+    const onboarded = await api("/api/platform/businesses", {
+      method: "POST",
+      token: platformToken,
+      body: {
+        name: "Owner-less Cafe",
+        slug: `ownerless-${Date.now()}`,
+        adminName: "Owner-less Admin",
+        adminEmail: `ownerless-${Date.now()}@test.com`,
+        adminPassword: "password123",
+        category: "cafe",
+      },
+    });
+    check("platform onboards a business with no owner attached -> 201", onboarded.status === 201);
+
+    const mintOwnerlessAdmin = await api("/__test__/mint-token", {
+      method: "POST",
+      slug: onboarded.body.business.slug,
+      body: { email: onboarded.body.admin.email, type: "email_verify" },
+    });
+    await api(`/api/auth/verify-email?token=${mintOwnerlessAdmin.body.token}`, { slug: onboarded.body.business.slug });
+    const ownerlessLogin = await api("/api/auth/login", {
+      method: "POST",
+      slug: onboarded.body.business.slug,
+      body: { email: onboarded.body.admin.email, password: "password123" },
+    });
+    const ownerlessAdminSettings = await api("/api/admin/settings", { token: ownerlessLogin.body.token, slug: onboarded.body.business.slug });
+    check("owner-less business's settings report hasOwnerAccount:false", ownerlessAdminSettings.body?.settings?.hasOwnerAccount === false);
+
+    const ownerlessSubView = await api("/api/admin/subscription", { token: ownerlessLogin.body.token, slug: onboarded.body.business.slug });
+    check("owner-less business's /api/admin/subscription -> 404 (no dead-end 200)", ownerlessSubView.status === 404);
   } finally {
     stop();
   }
