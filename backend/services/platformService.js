@@ -90,7 +90,8 @@ const loginPlatformAdmin = async ({ email, password }) => {
     user: {
       id: user._id.toString(),
       name: user.name,
-      role: user.role
+      role: user.role,
+      platformRole: user.platformRole || "owner"
     }
   };
 };

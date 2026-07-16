@@ -66,7 +66,12 @@ const verifyToken = async (req, _res, next) => {
       // Tenant the authenticated user belongs to (null for platform admins).
       // Loyalty operations scope to this value, so a user can only ever act
       // within their own tenant regardless of any client-supplied slug.
-      organizationId: decoded.organizationId || null
+      organizationId: decoded.organizationId || null,
+      // Only meaningful for role === "platform". Read fresh from the DB on
+      // every request (the `user` row is already fetched above for the
+      // suspended-tenant check) rather than trusting the JWT, so a
+      // demotion/promotion takes effect immediately, not just on next login.
+      platformRole: user.role === "platform" ? (user.platformRole || "owner") : null
     };
 
     next();
@@ -88,11 +93,28 @@ const requireRole = (role, label) => (req, res, next) => {
 
 // A tenant's admin (barista/owner console).
 const isBusinessAdmin = requireRole("business_admin", "Business admin");
-// The platform super-admin (SaaS owner).
+// The platform super-admin (SaaS owner). Either platformRole — owner or
+// support — passes this gate; it's the existing baseline for read-only
+// platform surfaces.
 const isPlatformAdmin = requireRole("platform", "Platform admin");
+
+// The stricter platform gate: only platformRole "owner" passes. Used for
+// onboarding/editing/suspending a business, platform contact settings, and
+// managing the platform team itself — "support" is read-only everywhere
+// this guard is used.
+const isPlatformOwner = (req, res, next) => {
+  if (!req.user || req.user.role !== "platform" || req.user.platformRole !== "owner") {
+    return res.status(403).json({
+      success: false,
+      message: "Forbidden: platform owner access required."
+    });
+  }
+  next();
+};
 
 module.exports = {
   verifyToken,
   isBusinessAdmin,
-  isPlatformAdmin
+  isPlatformAdmin,
+  isPlatformOwner
 };

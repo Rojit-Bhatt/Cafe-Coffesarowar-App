@@ -24,6 +24,11 @@ const UserSchema = new mongoose.Schema({
   address: { type: String, trim: true, default: "" },
   emailVerified: { type: Boolean, default: false },
   role: { type: String, enum: ["customer", "business_admin", "platform"], default: "customer" },
+  // Only meaningful when role === "platform". null/unset is treated as
+  // "owner" everywhere it's read — this is deliberate so the existing
+  // seeded admin (created before this field existed) keeps full access
+  // with no migration needed.
+  platformRole: { type: String, enum: ["owner", "support"], default: null },
   // Set only for role==="customer" rows — links this tenant-scoped
   // "membership" row to its global CustomerAccount (identity/password now
   // lives there; name/phone/emailVerified here are denormalized copies kept

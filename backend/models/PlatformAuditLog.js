@@ -8,7 +8,7 @@ const mongoose = require("mongoose");
 const PlatformAuditLogSchema = new mongoose.Schema({
   actorId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   actorName: { type: String, required: true },
-  action: { type: String, enum: ["onboard", "edit", "suspend", "reactivate"], required: true },
+  action: { type: String, enum: ["onboard", "edit", "suspend", "reactivate", "invite_admin", "remove_admin"], required: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null },
   targetName: { type: String, required: true },
   details: { type: String, default: "" },
