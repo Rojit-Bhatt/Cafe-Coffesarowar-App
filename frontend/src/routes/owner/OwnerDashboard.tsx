@@ -28,7 +28,7 @@ export default function OwnerDashboard() {
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; businesses: OwnerBusiness[] }>(
         "/api/owner/my-businesses",
-        { role: "owner-global" },
+        { role: "company" },
       );
       return res.businesses || [];
     },
@@ -36,7 +36,7 @@ export default function OwnerDashboard() {
 
   const create = useMutation({
     mutationFn: (body: typeof EMPTY_FORM) =>
-      apiRequest("/api/owner/businesses", { method: "POST", role: "owner-global", body }),
+      apiRequest("/api/owner/businesses", { method: "POST", role: "company", body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ownerBusinesses"] });
       toast.success("Business created!");
@@ -57,7 +57,7 @@ export default function OwnerDashboard() {
     try {
       const res = await apiRequest<{ success: boolean; token: string; user: any }>(
         "/api/owner/enter-business",
-        { method: "POST", role: "owner-global", body: { organizationId } },
+        { method: "POST", role: "company", body: { organizationId } },
       );
       localStorage.setItem("admin_auth_token", res.token);
       localStorage.setItem("admin_auth_user", JSON.stringify(res.user));

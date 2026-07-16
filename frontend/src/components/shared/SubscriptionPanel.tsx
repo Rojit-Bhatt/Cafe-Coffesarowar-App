@@ -50,7 +50,7 @@ interface SubscriptionPanelProps {
   queryKey: string;
   fetchPath: string;
   redeemPath: string;
-  role: "owner-global" | "admin";
+  role: "company" | "admin";
   // Extra query-key prefixes to invalidate on a successful redemption — e.g.
   // "adminSettings" so AdminLayout's reminder banner (which reads settings,
   // not this panel's own query) refreshes too. Matched by predicate since

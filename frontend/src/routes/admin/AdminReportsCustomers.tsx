@@ -1,12 +1,11 @@
 import { Download } from "lucide-react";
-import { getTenantSlug } from "../../lib/api";
+import { tenantHeaders } from "../../lib/api";
 
 export default function AdminReportsCustomers() {
   const download = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const slug = getTenantSlug();
     const res = await fetch("/api/admin/reports/customers/download", {
-      headers: { Authorization: `Bearer ${token}`, ...(slug ? { "X-Tenant-Slug": slug } : {}) },
+      headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
     });
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
+import { tenantPath } from "../lib/tenantPath";
 
 // Verify tokens are single-use, so firing the request twice for the same
 // token would 400 on the second call even though the first succeeded. In
@@ -24,7 +25,8 @@ function verifyOnce(token: string) {
 }
 
 export default function VerifyEmail() {
-  const { slug } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const [params] = useSearchParams();
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
   const [msg, setMsg] = useState("");
@@ -60,7 +62,7 @@ export default function VerifyEmail() {
             </h2>
             <p className="mt-2 text-sm text-[var(--muted)]">{msg}</p>
             <Link
-              to={`/${slug}/login`}
+              to={tenantPath(companySlug, slug, "login")}
               className="mt-5 inline-block rounded-[13px] px-6 py-3 text-sm font-bold text-white"
               style={{ background: "var(--brand)" }}
             >

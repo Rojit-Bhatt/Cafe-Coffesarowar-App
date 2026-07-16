@@ -5,6 +5,7 @@ import { apiRequest } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
+import { tenantPath } from "../../lib/tenantPath";
 
 interface AdminCustomer {
   id: string;
@@ -34,7 +35,8 @@ function formatVisit(iso: string): string {
 // design's full-page drill-down. Reuses the already-cached admin customers
 // list rather than adding a new backend endpoint for a single row.
 export default function AdminCustomerDetail() {
-  const { slug, id } = useParams();
+  const { companySlug = "", outletSlug = "", id } = useParams();
+  const slug = outletSlug;
   const { data: settings } = useAdminSettings();
   const required = settings?.program?.stampsRequired ?? 5;
   const { user } = useAdminAuth();
@@ -56,7 +58,7 @@ export default function AdminCustomerDetail() {
   return (
     <div>
       <div className="mb-6 flex items-center gap-1.5 text-sm font-semibold text-[var(--muted)]">
-        <Link to={`/${slug}/admin/customers`} className="hover:text-[var(--ink)]">
+        <Link to={tenantPath(companySlug, slug, "admin/customers")} className="hover:text-[var(--ink)]">
           Customers
         </Link>
         <ChevronRight className="h-3.5 w-3.5" />

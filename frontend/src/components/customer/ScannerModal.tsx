@@ -7,6 +7,7 @@ import { apiRequest } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
 import { useTenant } from "../../context/TenantContext";
 import { StampCelebration } from "./StampCelebration";
+import { tenantPath } from "../../lib/tenantPath";
 
 export function ScannerModal({
   open,
@@ -21,6 +22,7 @@ export function ScannerModal({
   tenantName: string;
   rewardTitle: string;
 }) {
+  const { companySlug } = useTenant();
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -223,7 +225,7 @@ export function ScannerModal({
 
   const handleGoToWallet = () => {
     onClose();
-    navigate(`/${slug}/wallet`);
+    navigate(tenantPath(companySlug, slug, "wallet"));
   };
 
   if (!open) return null;

@@ -1,5 +1,5 @@
 import { Suspense, lazy } from 'react';
-import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { CustomerAuthProvider } from './context/CustomerAuthContext';
@@ -148,7 +148,14 @@ export default function App() {
           </Route>
 
           {/* Tenant-scoped experiences. */}
-          <Route path="/:slug" element={<TenantScope />}>
+          {/* A company slug alone has no customer-facing page — outlets are
+              where customers actually go, so send them to the directory. */}
+          <Route path="/:companySlug" element={<Navigate to="/explore" replace />} />
+
+          {/* Tenant-scoped experiences live at /[company]/[outlet]/*. An
+              outlet slug is unique only within its company, so both segments
+              are always required to identify one. */}
+          <Route path="/:companySlug/:outletSlug" element={<TenantScope />}>
             <Route index element={<BusinessLanding />} />
             <Route path="login" element={<CustomerLogin />} />
             <Route path="register" element={<CustomerRegister />} />

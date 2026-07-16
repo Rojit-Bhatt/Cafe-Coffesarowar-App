@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Download, UploadCloud, Search } from "lucide-react";
 import toast from "react-hot-toast";
-import { apiRequest, getTenantSlug } from "../../lib/api";
+import { apiRequest, tenantHeaders } from "../../lib/api";
 import { useAdminSettings, useUpdateAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -61,11 +61,10 @@ export default function MenuManagement() {
 
   const downloadTemplate = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const slug = getTenantSlug();
     const res = await fetch("/api/admin/menu/template", {
       headers: {
         Authorization: `Bearer ${token}`,
-        ...(slug ? { "X-Tenant-Slug": slug } : {}),
+        ...tenantHeaders(),
       },
     });
     const blob = await res.blob();

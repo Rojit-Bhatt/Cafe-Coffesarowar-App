@@ -18,6 +18,7 @@ import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../shared/AccountMenu";
+import { tenantPath } from "../../lib/tenantPath";
 
 interface NavLeaf {
   to: string;
@@ -78,7 +79,8 @@ function groupsWithActiveChild(pathname: string): Set<string> {
 }
 
 export function AdminLayout() {
-  const { slug } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAdminAuth();
@@ -109,7 +111,7 @@ export function AdminLayout() {
 
   const handleLogout = () => {
     logout();
-    navigate(`/${slug}/admin/login`);
+    navigate(tenantPath(companySlug, slug, "admin/login"));
   };
 
   return (

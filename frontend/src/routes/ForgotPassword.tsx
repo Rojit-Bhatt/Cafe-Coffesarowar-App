@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { apiRequest } from "../lib/api";
+import { tenantPath } from "../lib/tenantPath";
 
 export default function ForgotPassword() {
-  const { slug } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -47,7 +49,7 @@ export default function ForgotPassword() {
           </form>
         )}
         <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
-          <Link to={`/${slug}/login`} className="font-bold text-[var(--brand)] hover:underline">
+          <Link to={tenantPath(companySlug, slug, "login")} className="font-bold text-[var(--brand)] hover:underline">
             Back to sign in
           </Link>
         </p>

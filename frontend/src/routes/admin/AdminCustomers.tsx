@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { Search, Download } from "lucide-react";
-import { apiRequest, getTenantSlug } from "../../lib/api";
+import { apiRequest, tenantHeaders } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
@@ -56,9 +56,8 @@ export default function AdminCustomers() {
 
   const downloadExcel = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const tenantSlug = getTenantSlug();
     const res = await fetch("/api/admin/reports/customers/download", {
-      headers: { Authorization: `Bearer ${token}`, ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}) },
+      headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
     });
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

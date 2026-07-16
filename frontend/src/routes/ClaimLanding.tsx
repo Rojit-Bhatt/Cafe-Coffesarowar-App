@@ -6,6 +6,7 @@ import { apiRequest } from "../lib/api";
 import { useTenant } from "../context/TenantContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { StampCelebration } from "../components/customer/StampCelebration";
+import { tenantPath } from "../lib/tenantPath";
 
 type Stage =
   | "resolving"
@@ -38,7 +39,8 @@ function startClaimOnce(token: string) {
 }
 
 export default function ClaimLanding() {
-  const { slug = "" } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { tenant } = useTenant();
@@ -181,7 +183,7 @@ export default function ClaimLanding() {
         <h2 className="font-display text-xl font-bold text-[var(--ink)]">Couldn't add your stamp</h2>
         <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">{errorMsg}</p>
         <Link
-          to={`/${slug}`}
+          to={tenantPath(companySlug, slug)}
           className="mt-6 rounded-[13px] px-6 py-3 text-sm font-bold text-white"
           style={{ background: "var(--brand)" }}
         >
@@ -214,7 +216,7 @@ export default function ClaimLanding() {
         voucherCode={result.voucherCode}
         copied={copied}
         onCopyCode={copyCode}
-        onDone={() => navigate(`/${slug}/dashboard`)}
+        onDone={() => navigate(tenantPath(companySlug, slug, "dashboard"))}
         doneLabel="Go to dashboard"
       />
     );

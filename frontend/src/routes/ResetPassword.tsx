@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { apiRequest } from "../lib/api";
+import { tenantPath } from "../lib/tenantPath";
 
 export default function ResetPassword() {
-  const { slug } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
@@ -26,7 +28,7 @@ export default function ResetPassword() {
     try {
       await apiRequest("/api/auth/reset-password", { method: "POST", body: { token, password } });
       toast.success("Password updated! Go ahead and sign in.");
-      navigate(`/${slug}/login`);
+      navigate(tenantPath(companySlug, slug, "login"));
     } catch (err) {
       toast.error((err as Error).message || "Couldn't reset that — try again.");
     } finally {

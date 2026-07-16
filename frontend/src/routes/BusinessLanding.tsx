@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
 import { useTenant } from "../context/TenantContext";
+import { tenantPath } from "../lib/tenantPath";
 
 // Public, tenant-branded landing shown at /:slug. Join / sign-in entry point.
 export default function BusinessLanding() {
-  const { slug, tenant } = useTenant();
+  const { companySlug, slug, tenant } = useTenant();
   const branding = tenant?.branding;
   const program = tenant?.program;
   const initial = (tenant?.name || "?").charAt(0).toUpperCase();
@@ -50,14 +51,14 @@ export default function BusinessLanding() {
           </div>
 
           <Link
-            to={`/${slug}/register`}
+            to={tenantPath(companySlug, slug, "register")}
             className="stamp-interactive mb-2.5 block w-full rounded-full py-4 text-center text-[16px] font-bold text-white"
             style={{ background: "var(--brand)" }}
           >
             Join &amp; start collecting
           </Link>
           <Link
-            to={`/${slug}/login`}
+            to={tenantPath(companySlug, slug, "login")}
             className="block w-full rounded-[15px] py-3.5 text-center font-semibold text-[var(--muted)]"
           >
             I already have an account

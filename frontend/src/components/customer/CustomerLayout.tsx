@@ -9,11 +9,12 @@ import { PLATFORM_NAME } from "../../lib/platform";
 import { BottomNav } from "./BottomNav";
 import { ScannerModal } from "./ScannerModal";
 import { StampdLogo } from "../shared/StampdLogo";
+import { tenantPath } from "../../lib/tenantPath";
 
 // The authenticated customer app shell: a phone-framed viewport with a shared
 // scanner modal and bottom navigation. Wraps the dashboard and wallet routes.
 export function CustomerLayout() {
-  const { slug, tenant } = useTenant();
+  const { companySlug, slug, tenant } = useTenant();
   const { user, isLoading } = useCustomerAuth();
   const { data: account } = useAccount("customer");
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export function CustomerLayout() {
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "customer")) {
-      navigate(`/${slug}/login`);
+      navigate(tenantPath(companySlug, slug, "login"));
     }
   }, [user, isLoading, navigate, slug]);
 
@@ -78,7 +79,7 @@ export function CustomerLayout() {
               <Bell className="h-4 w-4" />
             </button>
             <Link
-              to={`/${slug}/settings`}
+              to={tenantPath(companySlug, slug, "settings")}
               aria-label="Account settings"
               className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white"
               style={{ background: "var(--brand)" }}

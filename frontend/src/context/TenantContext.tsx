@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useRef } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { apiRequest, setTenantSlug } from "../lib/api";
+import { tenantPath } from "../lib/tenantPath";
+import { apiRequest, setTenantRef } from "../lib/api";
 
 export interface TenantBranding {
   tagline: string;
@@ -54,11 +55,14 @@ export interface Tenant {
 }
 
 interface TenantContextValue {
+  companySlug: string;
   slug: string;
   tenant: Tenant | null;
   isLoading: boolean;
   notFound: boolean;
   suspended: boolean;
+  // Build any URL inside this outlet — never interpolate the slugs by hand.
+  path: (sub?: string) => string;
 }
 
 const TenantContext = createContext<TenantContextValue | undefined>(undefined);
@@ -76,12 +80,13 @@ function darken(hex: string, amount = 0.22): string {
 }
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const { slug = "" } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const location = useLocation();
 
-  // Set the slug synchronously so any request a child fires (e.g. login)
-  // already carries the X-Tenant-Slug header the public routes require.
-  setTenantSlug(slug);
+  // Set the pair synchronously so any request a child fires (e.g. login)
+  // already carries the company+outlet headers the public routes require.
+  setTenantRef(companySlug && outletSlug ? { company: companySlug, outlet: outletSlug } : null);
 
   // A plain useQuery (no staleTime override) so it refetches on window focus
   // and remount like the rest of the app's data hooks — branding/program/
@@ -93,12 +98,12 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     isError,
     error,
   } = useQuery<Tenant>({
-    queryKey: ["tenant", slug],
+    queryKey: ["tenant", companySlug, outletSlug],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; tenant: Tenant }>("/api/tenant");
       return res.tenant;
     },
-    enabled: Boolean(slug),
+    enabled: Boolean(companySlug && outletSlug),
   });
 
   const liveSuspended = (error as (Error & { code?: string }) | null)?.code === "TENANT_SUSPENDED";
@@ -107,7 +112,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // fetch — it must render through here even though this tenant fetch also
   // 403s, rather than being pre-empted by this component's own full-screen
   // message meant for the customer-facing app.
-  const isAdminRoute = location.pathname.startsWith(`/${slug}/admin`);
+  const isAdminRoute = location.pathname.startsWith(`/${companySlug}/${outletSlug}/admin`);
 
   const brand = tenant?.branding?.primaryColor || "#8C5E45";
   const brandDeep = darken(brand);
@@ -145,7 +150,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           Temporarily unavailable
         </h2>
         <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-          <span className="font-mono">/{slug}</span> isn't accepting visitors right now. Please
+          <span className="font-mono">/{companySlug}/{outletSlug}</span> isn't accepting visitors right now. Please
           check back later.
         </p>
       </div>
@@ -162,7 +167,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           Business not found
         </h2>
         <p className="mt-2 max-w-sm text-sm text-[var(--muted)]">
-          We couldn’t find a business at <span className="font-mono">/{slug}</span>. Check the link
+          We couldn’t find a business at <span className="font-mono">/{companySlug}/{outletSlug}</span>. Check the link
           and try again.
         </p>
       </div>
@@ -170,7 +175,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <TenantContext.Provider value={{ slug, tenant: tenant ?? null, isLoading, notFound, suspended }}>
+    <TenantContext.Provider value={{ companySlug, slug, tenant: tenant ?? null, isLoading, notFound, suspended, path: (sub = "") => tenantPath(companySlug, outletSlug, sub) }}>
       <div style={{ ["--brand" as any]: brand, ["--brand-deep" as any]: brandDeep }}>
         {children}
       </div>

@@ -6,7 +6,7 @@ export default function OwnerSubscription() {
       queryKey="ownerSubscription"
       fetchPath="/api/owner/subscription"
       redeemPath="/api/owner/subscription/redeem-key"
-      role="owner-global"
+      role="company"
     />
   );
 }

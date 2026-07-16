@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { Coffee, QrCode, Ticket, UtensilsCrossed, Settings } from "lucide-react";
+import { tenantPath } from "../../lib/tenantPath";
+import { useTenant } from "../../context/TenantContext";
 
 interface BottomNavProps {
   slug: string;
@@ -8,11 +10,12 @@ interface BottomNavProps {
 }
 
 export function BottomNav({ slug, activeTab, onScanClick }: BottomNavProps) {
+  const { companySlug } = useTenant();
   return (
     <footer className="relative flex-shrink-0 px-4 pb-5 pt-2">
       <div className="shadow-ambient relative mx-auto flex max-w-md items-center justify-between rounded-full bg-[var(--surface)] px-5 py-2">
         <Link
-          to={`/${slug}/dashboard`}
+          to={tenantPath(companySlug, slug, "dashboard")}
           className={`flex min-h-[44px] flex-col items-center justify-center gap-1 p-2 transition-colors ${
             activeTab === "dashboard"
               ? "text-[var(--brand)]"
@@ -25,7 +28,7 @@ export function BottomNav({ slug, activeTab, onScanClick }: BottomNavProps) {
         </Link>
 
         <Link
-          to={`/${slug}/menu`}
+          to={tenantPath(companySlug, slug, "menu")}
           className={`flex min-h-[44px] flex-col items-center justify-center gap-1 p-2 transition-colors ${
             activeTab === "menu"
               ? "text-[var(--brand)]"
@@ -57,7 +60,7 @@ export function BottomNav({ slug, activeTab, onScanClick }: BottomNavProps) {
         <div className="w-14" aria-hidden="true" />
 
         <Link
-          to={`/${slug}/wallet`}
+          to={tenantPath(companySlug, slug, "wallet")}
           className={`flex min-h-[44px] flex-col items-center justify-center gap-1 p-2 transition-colors ${
             activeTab === "wallet"
               ? "text-[var(--brand)]"
@@ -70,7 +73,7 @@ export function BottomNav({ slug, activeTab, onScanClick }: BottomNavProps) {
         </Link>
 
         <Link
-          to={`/${slug}/settings`}
+          to={tenantPath(companySlug, slug, "settings")}
           className={`flex min-h-[44px] flex-col items-center justify-center gap-1 p-2 transition-colors ${
             activeTab === "settings"
               ? "text-[var(--brand)]"

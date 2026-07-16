@@ -14,9 +14,10 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { apiRequest, getTenantSlug } from "../../lib/api";
+import { apiRequest, tenantHeaders } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { tenantPath } from "../../lib/tenantPath";
 
 interface AdminCustomer {
   id: string;
@@ -70,7 +71,8 @@ function lastVisit(iso: string | null): string {
 }
 
 export default function AdminOverview() {
-  const { slug } = useParams();
+  const { companySlug = "", outletSlug = "" } = useParams();
+  const slug = outletSlug;
   const { data: settings } = useAdminSettings();
   const { user } = useAdminAuth();
   const orgId = user?.organizationId ?? null;
@@ -127,9 +129,8 @@ export default function AdminOverview() {
 
   const downloadExcel = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const tenantSlug = getTenantSlug();
     const res = await fetch("/api/admin/reports/customers/download", {
-      headers: { Authorization: `Bearer ${token}`, ...(tenantSlug ? { "X-Tenant-Slug": tenantSlug } : {}) },
+      headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
     });
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -148,7 +149,7 @@ export default function AdminOverview() {
           <p className="text-[var(--muted)]">Here’s how {settings?.name ?? "your business"} is doing.</p>
         </div>
         <Link
-          to={`/${slug}/admin/generate`}
+          to={tenantPath(companySlug, slug, "admin/generate")}
           className="stamp-interactive rounded-full px-5 py-3 text-[15px] font-bold text-white"
           style={{ background: "var(--brand)" }}
         >
@@ -282,7 +283,7 @@ export default function AdminOverview() {
         )}
 
         <Link
-          to={`/${slug}/admin/customers`}
+          to={tenantPath(companySlug, slug, "admin/customers")}
           className="mt-4 inline-block text-sm font-bold"
           style={{ color: "var(--brand)" }}
         >

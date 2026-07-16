@@ -10,6 +10,7 @@ import { useTenant } from "../../context/TenantContext";
 import { apiRequest } from "../../lib/api";
 import { PhoneStepModal } from "./PhoneStepModal";
 import toast from "react-hot-toast";
+import { tenantPath } from "../../lib/tenantPath";
 
 type Mode = "login" | "register";
 
@@ -35,7 +36,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export function AuthView({ mode }: { mode: Mode }) {
   const navigate = useNavigate();
-  const { slug, tenant } = useTenant();
+  const { companySlug, slug, tenant } = useTenant();
   const { user, login, registerUser, loginWithGoogle, ensureTenantSession } = useCustomerAuth();
   const [showPass, setShowPass] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -47,7 +48,7 @@ export function AuthView({ mode }: { mode: Mode }) {
 
   useEffect(() => {
     if (user && user.role === "customer") {
-      navigate(`/${slug}/dashboard`);
+      navigate(tenantPath(companySlug, slug, "dashboard"));
     }
   }, [user, navigate, slug]);
 
@@ -67,7 +68,7 @@ export function AuthView({ mode }: { mode: Mode }) {
       await login(data.email, data.password);
       await ensureTenantSession(slug, tenant?.id ?? null);
       toast.success("Good to see you again!", { id: toastId });
-      navigate(`/${slug}/dashboard`);
+      navigate(tenantPath(companySlug, slug, "dashboard"));
     } catch (err) {
       toast.error((err as Error).message || "Couldn't sign you in — try again.", { id: toastId });
     } finally {
@@ -96,7 +97,7 @@ export function AuthView({ mode }: { mode: Mode }) {
       const { needsPhone } = await loginWithGoogle(credential);
       await ensureTenantSession(slug, tenant?.id ?? null);
       if (needsPhone) setShowPhoneStep(true);
-      else navigate(`/${slug}/dashboard`);
+      else navigate(tenantPath(companySlug, slug, "dashboard"));
     } catch (err) {
       toast.error((err as Error).message || "Google sign-in didn't work — try again.");
     }
@@ -129,7 +130,7 @@ export function AuthView({ mode }: { mode: Mode }) {
           Resend email
         </button>
         <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
-          <Link to={`/${slug}/login`} className="font-bold text-[var(--brand)] hover:underline">
+          <Link to={tenantPath(companySlug, slug, "login")} className="font-bold text-[var(--brand)] hover:underline">
             Go to sign in
           </Link>
         </p>
@@ -173,7 +174,7 @@ export function AuthView({ mode }: { mode: Mode }) {
 
           <div className="text-right">
             <Link
-              to={`/${slug}/forgot-password`}
+              to={tenantPath(companySlug, slug, "forgot-password")}
               className="text-xs font-semibold text-[var(--muted)] hover:text-[var(--ink)]"
             >
               Forgot password?
@@ -251,14 +252,14 @@ export function AuthView({ mode }: { mode: Mode }) {
       <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
         {isLogin ? "New here? " : "Already a member? "}
         <Link
-          to={isLogin ? `/${slug}/register` : `/${slug}/login`}
+          to={isLogin ? tenantPath(companySlug, slug, "register") : tenantPath(companySlug, slug, "login")}
           className="font-bold text-[var(--brand)] hover:underline"
         >
           {isLogin ? "Create an account" : "Sign in"}
         </Link>
       </p>
 
-      {showPhoneStep && <PhoneStepModal onDone={() => navigate(`/${slug}/dashboard`)} />}
+      {showPhoneStep && <PhoneStepModal onDone={() => navigate(tenantPath(companySlug, slug, "dashboard"))} />}
     </Shell>
   );
 }

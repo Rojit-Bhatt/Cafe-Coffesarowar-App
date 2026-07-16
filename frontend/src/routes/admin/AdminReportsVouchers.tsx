@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Ticket, CheckCircle2, Clock, Percent } from "lucide-react";
-import { apiRequest, getTenantSlug } from "../../lib/api";
+import { apiRequest, tenantHeaders } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 
@@ -50,10 +50,9 @@ export default function AdminReportsVouchers() {
 
   const download = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const slug = getTenantSlug();
     const res = await fetch(
       `/api/admin/reports/vouchers/download?startDate=${startDate}&endDate=${endDate}`,
-      { headers: { Authorization: `Bearer ${token}`, ...(slug ? { "X-Tenant-Slug": slug } : {}) } },
+      { headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() } },
     );
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
