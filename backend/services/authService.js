@@ -127,17 +127,17 @@ const loginUser = async ({ email, password, organizationId }) => {
   const user = await User.findOne({ organizationId, email: normalizedEmail });
 
   if (!user) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   if (!user.password) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   return formatAuthPayload(user);

@@ -162,12 +162,12 @@ const loginAccount = async ({ email, password }) => {
   const account = await CustomerAccount.findOne({ email: normalizedEmail });
 
   if (!account || !account.password) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   const isPasswordValid = await bcrypt.compare(password, account.password);
   if (!isPasswordValid) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   return formatGlobalSessionPayload(account);

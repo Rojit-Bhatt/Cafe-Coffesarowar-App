@@ -68,13 +68,13 @@ const loginPlatformAdmin = async ({ email, password }) => {
   const user = await User.findOne({ email: normalizedEmail, role: "platform" });
 
   if (!user || !user.password) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
 
   if (!isPasswordValid) {
-    throw createHttpError("Invalid email or password.", 401);
+    throw createHttpError("That email or password didn't match — try again.", 401);
   }
 
   const token = generateAuthToken({
