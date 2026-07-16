@@ -19,6 +19,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
+const COMPANY = "coffesarowar";
+
 let BASE = process.env.TEST_BASE_URL || "http://localhost:5001";
 let pass = 0;
 let fail = 0;
@@ -36,7 +38,7 @@ const ok = (condition, message) => {
 async function api(path, { method = "GET", token, slug, body } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (slug) headers["X-Tenant-Slug"] = slug;
+  if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
   const res = await fetch(BASE + path, {
     method,
     headers,
@@ -87,7 +89,7 @@ async function run() {
   ok(!!brew?.id, "2nd business appears in businesses list with an id");
 
   console.log("\n== Tenant public info ==");
-  const t1 = await api("/api/tenant", { slug: "coffesarowar" });
+  const t1 = await api("/api/tenant", { slug: "durbarmarg" });
   ok(t1.status === 200 && t1.json?.tenant?.name === "Coffesarowar", "coffesarowar public info resolves");
   ok(t1.json?.tenant?.program?.stampsRequired === 5, "coffesarowar requires 5 stamps");
 
@@ -115,29 +117,29 @@ async function run() {
     t2.json?.tenant?.program?.stampsRequired === 8 && t2.json?.tenant?.program?.rewardTitle === "Free Pastry",
     "2nd tenant now 8 stamps / Free Pastry"
   );
-  const t1Again = await api("/api/tenant", { slug: "coffesarowar" });
+  const t1Again = await api("/api/tenant", { slug: "durbarmarg" });
   ok(t1Again.json?.tenant?.program?.stampsRequired === 5, "coffesarowar program unaffected by 2nd tenant's change");
 
   console.log("\n== Customer stamp -> voucher loop on coffesarowar ==");
   await api("/api/auth/register", {
     method: "POST",
-    slug: "coffesarowar",
+    slug: "durbarmarg",
     body: { name: "Alice", email: aliceEmail, phone: "+9779812345678", password: "password" },
   });
   // Alice registers unverified; stamping is gated on emailVerified. Mint +
   // consume an email-verify token via the dev-only hook to verify her.
   const aliceMint = await api("/__test__/mint-token", {
     method: "POST",
-    slug: "coffesarowar",
+    slug: "durbarmarg",
     body: { email: aliceEmail, type: "email_verify" },
   });
   const aliceVerify = await api(`/api/auth/verify-email?token=${aliceMint.json?.token}`, {
-    slug: "coffesarowar",
+    slug: "durbarmarg",
   });
   ok(aliceVerify.status === 200, "Alice verifies her email before collecting stamps");
   const clogin = await api("/api/auth/login", {
     method: "POST",
-    slug: "coffesarowar",
+    slug: "durbarmarg",
     body: { email: aliceEmail, password: "password" },
   });
   ok(clogin.status === 200 && !!clogin.json?.token, "customer Alice registers + logs in on coffesarowar");
@@ -148,8 +150,8 @@ async function run() {
 
   const baristaLogin = await api("/api/auth/login", {
     method: "POST",
-    slug: "coffesarowar",
-    body: { email: "barista@mansarowar.cafe", password: "password" },
+    slug: "durbarmarg",
+    body: { email: "durbarmarg@coffesarowar.com", password: "password" },
   });
   ok(baristaLogin.status === 200 && !!baristaLogin.json?.token, "coffesarowar barista logs in");
   const barista = baristaLogin.json?.token;

@@ -232,6 +232,10 @@ const seedDemoData = async () => {
             name: account.name,
             email: account.email,
             phone: account.phone,
+            // Customers keep a password on the membership row (that's what
+            // authService.registerUser writes for a tenant-scoped signup) —
+            // unlike admins, whose credential lives solely on AdminAccount.
+            password: passwordHash,
             role: "customer",
             emailVerified: true
           });

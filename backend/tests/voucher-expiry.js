@@ -13,7 +13,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function main() {
@@ -25,7 +26,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -37,13 +38,13 @@ async function main() {
   try {
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 
     const customerLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "customer@mansarowar.cafe", password: "password" },
+      body: { email: "asha@example.com", password: "password" },
     });
     const customerToken = customerLogin.body.token;
 

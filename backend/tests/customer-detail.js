@@ -10,7 +10,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5016 });
@@ -21,7 +22,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -33,7 +34,7 @@ async function main() {
   try {
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 
@@ -44,7 +45,7 @@ async function main() {
       body: { name: "D1 Tester", email, password: "password", phone: "+9779811112222", address: "123 Test Lane" },
     });
     const mint = await api("/__test__/mint-token", { method: "POST", body: { email, type: "email_verify" } });
-    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Tenant-Slug": SLUG } });
+    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } });
     const customerLogin = await api("/api/auth/login", { method: "POST", body: { email, password: "password" } });
     const customerToken = customerLogin.body.token;
 

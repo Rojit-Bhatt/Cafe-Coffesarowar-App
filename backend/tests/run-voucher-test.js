@@ -5,7 +5,8 @@ const http = require("http");
 
 const PORT = 5003;
 const BASE_URL = `http://localhost:${PORT}`;
-const TENANT_SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const TENANT_SLUG = "durbarmarg";
 
 // Helper for making JSON requests and capturing raw HTTP interactions
 function makeRequest(method, urlPath, headers = {}, body = null) {
@@ -159,8 +160,8 @@ app.post("/api/test/reset-cooldown", async (req, res) => {
   try {
     // A. LOGIN ADMIN
     console.log("--- TEST A: LOGIN ADMIN ---");
-    const adminLoginRes = await makeRequest("POST", "/api/auth/login", { "X-Tenant-Slug": TENANT_SLUG }, {
-      email: "barista@mansarowar.cafe",
+    const adminLoginRes = await makeRequest("POST", "/api/admin-auth/login", {}, {
+      email: "durbarmarg@coffesarowar.com",
       password: "password"
     });
     console.log(adminLoginRes.rawRequestLog);
@@ -170,8 +171,8 @@ app.post("/api/test/reset-cooldown", async (req, res) => {
 
     // B. LOGIN CUSTOMER
     console.log("--- TEST B: LOGIN CUSTOMER ---");
-    const customerLoginRes = await makeRequest("POST", "/api/auth/login", { "X-Tenant-Slug": TENANT_SLUG }, {
-      email: "customer@mansarowar.cafe",
+    const customerLoginRes = await makeRequest("POST", "/api/auth/login", { "X-Company-Slug": COMPANY, "X-Outlet-Slug": TENANT_SLUG }, {
+      email: "asha@example.com",
       password: "password"
     });
     console.log(customerLoginRes.rawRequestLog);

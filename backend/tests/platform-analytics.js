@@ -12,6 +12,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
+const COMPANY = "coffesarowar";
+
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5025 });
   let failures = 0;
@@ -22,7 +24,7 @@ async function main() {
   const api = (path, { method = "GET", token, slug, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     return fetch(`${baseUrl}${path}`, {
       method,
       headers,

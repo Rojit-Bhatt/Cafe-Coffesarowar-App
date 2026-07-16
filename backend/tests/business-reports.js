@@ -16,7 +16,8 @@
 const ExcelJS = require("exceljs");
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 
 function isoDate(d) {
   return d.toISOString().slice(0, 10);
@@ -54,7 +55,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -66,7 +67,7 @@ async function main() {
   try {
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 
@@ -76,7 +77,7 @@ async function main() {
       body: { name: "D2 Tester", email, password: "password", phone: "+9779813334444", address: "45 Report Rd" },
     });
     const mint = await api("/__test__/mint-token", { method: "POST", body: { email, type: "email_verify" } });
-    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Tenant-Slug": SLUG } });
+    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } });
     const customerLogin = await api("/api/auth/login", { method: "POST", body: { email, password: "password" } });
     const customerToken = customerLogin.body.token;
 
@@ -119,7 +120,7 @@ async function main() {
     // Summary download parses back with the right values (now via ExcelJS).
     const summaryDownload = await fetch(
       `${baseUrl}/api/admin/reports/summary/download?startDate=${todayStart}&endDate=${todayEnd}`,
-      { headers: { Authorization: `Bearer ${adminToken}`, "X-Tenant-Slug": SLUG } },
+      { headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } },
     );
     check("summary download -> 200", summaryDownload.status === 200);
     const summaryBuf = Buffer.from(await summaryDownload.arrayBuffer());
@@ -129,7 +130,7 @@ async function main() {
 
     // Customers download parses back with the right columns and the new customer's row.
     const customersDownload = await fetch(`${baseUrl}/api/admin/reports/customers/download`, {
-      headers: { Authorization: `Bearer ${adminToken}`, "X-Tenant-Slug": SLUG },
+      headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG },
     });
     check("customers download -> 200", customersDownload.status === 200);
     const customersBuf = Buffer.from(await customersDownload.arrayBuffer());
@@ -172,7 +173,7 @@ async function main() {
 
     const voucherPerfDownload = await fetch(
       `${baseUrl}/api/admin/reports/vouchers/download?startDate=${todayStart}&endDate=${todayEnd}`,
-      { headers: { Authorization: `Bearer ${adminToken}`, "X-Tenant-Slug": SLUG } },
+      { headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } },
     );
     check("voucher performance download -> 200", voucherPerfDownload.status === 200);
     const voucherPerfBuf = Buffer.from(await voucherPerfDownload.arrayBuffer());

@@ -12,6 +12,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
+const COMPANY = "coffesarowar";
+
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5023 });
   let failures = 0;
@@ -81,7 +83,7 @@ async function main() {
     // 3. The OLD (wrong) email can no longer log in as this business's admin.
     const loginOldReal = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Tenant-Slug": slug },
+      headers: { "Content-Type": "application/json", "X-Company-Slug": COMPANY, "X-Outlet-Slug": slug },
       body: JSON.stringify({ email: wrongEmail, password: "password" }),
     });
     check("old (wrong) email can no longer log in -> 401", loginOldReal.status === 401);
@@ -91,7 +93,7 @@ async function main() {
     //    route" problem).
     const loginNewReal = await fetch(`${baseUrl}/api/auth/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Tenant-Slug": slug },
+      headers: { "Content-Type": "application/json", "X-Company-Slug": COMPANY, "X-Outlet-Slug": slug },
       body: JSON.stringify({ email: correctEmail, password: "password" }),
     });
     const loginNewBody = await loginNewReal.json();

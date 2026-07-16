@@ -3,7 +3,8 @@ const http = require("http");
 const { bootServer } = require("./helpers/bootServer");
 
 let BASE_URL = process.env.TEST_BASE_URL || "http://localhost:5001";
-const TENANT_SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const TENANT_SLUG = "durbarmarg";
 
 async function jsonFetch(path, options = {}) {
   const url = `${BASE_URL}${path}`;
@@ -76,7 +77,7 @@ async function runQa() {
     console.log(`1. Testing registration with email: ${registerEmail}...`);
     const regRes = await jsonFetch("/api/auth/register", {
       method: "POST",
-      headers: { "X-Tenant-Slug": TENANT_SLUG },
+      headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": TENANT_SLUG },
       body: {
         name: "QA Test User",
         email: registerEmail,
@@ -98,7 +99,7 @@ async function runQa() {
     console.log("2. Testing login...");
     const loginRes = await jsonFetch("/api/auth/login", {
       method: "POST",
-      headers: { "X-Tenant-Slug": TENANT_SLUG },
+      headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": TENANT_SLUG },
       body: {
         email: registerEmail,
         password: "password123",
@@ -171,12 +172,13 @@ async function runQa() {
 
   // Admin Flows
   try {
-    // 9. Admin Login
+    // 9. Admin Login — via the unified slug-less endpoint. An outlet admin's
+    // credential lives on its AdminAccount, not on the tenant User row, so
+    // the tenant-scoped /api/auth/login no longer serves admins at all.
     console.log("9. Testing Admin login with seeded credentials...");
-    const adminEmail = "barista@mansarowar.cafe";
-    const adminLoginRes = await jsonFetch("/api/auth/login", {
+    const adminEmail = "durbarmarg@coffesarowar.com";
+    const adminLoginRes = await jsonFetch("/api/admin-auth/login", {
       method: "POST",
-      headers: { "X-Tenant-Slug": TENANT_SLUG },
       body: {
         email: adminEmail,
         password: "password",

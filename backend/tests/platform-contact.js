@@ -12,6 +12,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
+const COMPANY = "coffesarowar";
+
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5019 });
   let failures = 0;
@@ -21,7 +23,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -51,8 +53,8 @@ async function main() {
 
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      slug: "coffesarowar",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      slug: "durbarmarg",
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 

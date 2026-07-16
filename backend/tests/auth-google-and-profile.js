@@ -19,7 +19,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 
 async function main() {
   const { baseUrl, stop } = await bootServer({
@@ -37,7 +38,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -86,7 +87,7 @@ async function main() {
     // Registration doesn't auto-login (unverified customers can't get a
     // session token) — verify via the dev-only mint-token hook, then login.
     const mint = await api("/__test__/mint-token", { method: "POST", body: { email: customerEmail, type: "email_verify" } });
-    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Tenant-Slug": SLUG } });
+    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } });
     const customerLogin = await api("/api/auth/login", { method: "POST", body: { email: customerEmail, password: "password123" } });
     const customerToken = customerLogin.body?.token;
     check("customer login after verify -> token issued", Boolean(customerToken));
@@ -108,7 +109,7 @@ async function main() {
     // --- DELETE /api/admin/menu/:id ---
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 

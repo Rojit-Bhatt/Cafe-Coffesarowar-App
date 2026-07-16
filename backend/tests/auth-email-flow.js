@@ -11,8 +11,9 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
-const H = { "Content-Type": "application/json", "X-Tenant-Slug": SLUG };
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
+const H = { "Content-Type": "application/json", "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG };
 
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5013 });
@@ -42,7 +43,7 @@ async function main() {
     check("login emailVerified false", login1.user && login1.user.emailVerified === false);
 
     // 3. Unverified customer cannot claim a stamp
-    const genAdmin = await (await post("/api/auth/login", { email: "barista@mansarowar.cafe", password: "password" })).json();
+    const genAdmin = await (await post("/api/admin-auth/login", { email: "durbarmarg@coffesarowar.com", password: "password" })).json();
     const gen = await fetch(`${baseUrl}/api/admin/generate-qr`, {
       method: "POST", headers: { ...H, Authorization: `Bearer ${genAdmin.token}` }
     });

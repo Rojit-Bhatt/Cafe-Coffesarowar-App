@@ -18,6 +18,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
+const COMPANY = "coffesarowar";
+
 const SLUG_A = "coffesarowar";
 
 async function main() {
@@ -29,7 +31,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -66,7 +68,7 @@ async function main() {
     const adminALogin = await api("/api/auth/login", {
       method: "POST",
       slug: SLUG_A,
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminAToken = adminALogin.body.token;
     check("tenant A admin login -> token issued", Boolean(adminAToken));

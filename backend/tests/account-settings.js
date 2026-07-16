@@ -12,7 +12,8 @@
 
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 
 async function main() {
   const { baseUrl, stop } = await bootServer({ port: 5021 });
@@ -23,7 +24,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body } = {}) => {
     const headers = { "Content-Type": "application/json" };
-    if (slug) headers["X-Tenant-Slug"] = slug;
+    if (slug) { headers["X-Company-Slug"] = COMPANY; headers["X-Outlet-Slug"] = slug; }
     if (token) headers.Authorization = `Bearer ${token}`;
     return fetch(`${baseUrl}${path}`, {
       method,
@@ -40,7 +41,7 @@ async function main() {
       body: { name: "E1 Tester", email, password: "password", phone: "+9779811110000", address: "1 Test St" },
     });
     const mint = await api("/__test__/mint-token", { method: "POST", body: { email, type: "email_verify" } });
-    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Tenant-Slug": SLUG } });
+    await fetch(`${baseUrl}/api/auth/verify-email?token=${mint.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } });
     const customerLogin = await api("/api/auth/login", { method: "POST", body: { email, password: "password" } });
     const customerToken = customerLogin.body.token;
 
@@ -68,7 +69,7 @@ async function main() {
     check("new password works", newPwLogin.status === 200);
 
     // --- Business admin: existing seeded admin, profile + password ---
-    const adminLogin = await api("/api/auth/login", { method: "POST", body: { email: "barista@mansarowar.cafe", password: "password" } });
+    const adminLogin = await api("/api/admin-auth/login", { method: "POST", body: { email: "durbarmarg@coffesarowar.com", password: "password" } });
     const adminToken = adminLogin.body.token;
 
     const adminMe = await api("/api/account/me", { token: adminToken });
@@ -111,7 +112,7 @@ async function main() {
 
     const mintAdminVerify = await api("/__test__/mint-token", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, type: "email_verify" } });
     check("mint verify token for new admin -> 200", mintAdminVerify.status === 200);
-    const verifyRes = await fetch(`${baseUrl}/api/auth/verify-email?token=${mintAdminVerify.body.token}`, { headers: { "X-Tenant-Slug": secondSlug } });
+    const verifyRes = await fetch(`${baseUrl}/api/auth/verify-email?token=${mintAdminVerify.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": secondSlug } });
     check("new admin verify-email link -> 200", verifyRes.status === 200);
 
     const secondSettingsAfter = await api("/api/admin/settings", { slug: secondSlug, token: secondAdminToken });

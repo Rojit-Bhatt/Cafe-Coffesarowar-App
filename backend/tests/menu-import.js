@@ -14,7 +14,8 @@
 const ExcelJS = require("exceljs");
 const { bootServer } = require("./helpers/bootServer");
 
-const SLUG = "coffesarowar";
+const COMPANY = "coffesarowar";
+const SLUG = "durbarmarg";
 
 async function buildWorkbook(rows) {
   const workbook = new ExcelJS.Workbook();
@@ -42,7 +43,7 @@ async function main() {
   };
   const api = (path, { method = "GET", token, slug = SLUG, body, headers = {} } = {}) => {
     const h = { ...headers };
-    if (slug) h["X-Tenant-Slug"] = slug;
+    if (slug) { h["X-Company-Slug"] = COMPANY; h["X-Outlet-Slug"] = slug; }
     if (token) h.Authorization = `Bearer ${token}`;
     if (body !== undefined && !(body instanceof FormData)) {
       h["Content-Type"] = "application/json";
@@ -58,7 +59,7 @@ async function main() {
   try {
     const adminLogin = await api("/api/auth/login", {
       method: "POST",
-      body: { email: "barista@mansarowar.cafe", password: "password" },
+      body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
     const adminToken = adminLogin.body.token;
 
@@ -150,7 +151,7 @@ async function main() {
 
     // 8. Template download round-trips through ExcelJS.
     const templateRes = await fetch(`${baseUrl}/api/admin/menu/template`, {
-      headers: { Authorization: `Bearer ${adminToken}`, "X-Tenant-Slug": SLUG },
+      headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG },
     });
     check("template -> 200", templateRes.status === 200);
     const templateBuf = Buffer.from(await templateRes.arrayBuffer());
