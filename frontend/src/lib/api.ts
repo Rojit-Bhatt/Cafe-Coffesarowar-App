@@ -93,13 +93,18 @@ export async function apiRequest<T = unknown>(
 
   if (!response.ok) {
     let errorMsg = "Something went wrong";
+    let errCode: string | undefined;
     try {
       const errJson = await response.json();
       errorMsg = errJson.message || errorMsg;
+      errCode = errJson.code;
     } catch (_) {
       // ignore
     }
-    throw new Error(errorMsg);
+    const error = new Error(errorMsg) as Error & { status?: number; code?: string };
+    error.status = response.status;
+    error.code = errCode;
+    throw error;
   }
 
   try {
