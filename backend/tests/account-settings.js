@@ -11,6 +11,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -87,40 +88,36 @@ async function main() {
     check("platform GET /account/me -> 200", platformMe.status === 200);
     check("platform me has role platform", platformMe.body.role === "platform");
 
-    // --- New business onboarding: admin starts unverified, gets a verify email ---
-    const runSuffix = Date.now();
-    const secondSlug = `brewhaven-${runSuffix}`;
-    const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
+    // --- A new outlet's admin must verify before it can sign in at all ---
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}`, verify: false });
+
+    const unverifiedLogin = await api("/api/admin-auth/login", {
       method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
+      body: { email: sibling.adminEmail, password: "password" },
     });
-    const secondAdminLogin = await api("/api/auth/login", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, password: "password" } });
-    const secondAdminToken = secondAdminLogin.body.token;
+    check("a new outlet's admin can't sign in before verifying -> 403", unverifiedLogin.status === 403);
+    check("...with EMAIL_NOT_VERIFIED", unverifiedLogin.body?.code === "EMAIL_NOT_VERIFIED");
 
-    const secondSettingsBefore = await api("/api/admin/settings", { slug: secondSlug, token: secondAdminToken });
-    check("new admin settings -> 200", secondSettingsBefore.status === 200);
-    check("new admin starts unverified", secondSettingsBefore.body.settings.adminEmailVerified === false);
+    const mintAdminVerify = await api("/__test__/mint-admin-token", {
+      method: "POST", slug: undefined,
+      body: { email: sibling.adminEmail, type: "email_verify" },
+    });
+    check("mint verify token for the new admin -> 200", mintAdminVerify.status === 200);
+    const verifyRes = await api(`/api/admin-auth/verify-email?token=${mintAdminVerify.body.token}`, { slug: undefined });
+    check("new admin's verify-email link -> 200", verifyRes.status === 200);
 
-    const mintAdminVerify = await api("/__test__/mint-token", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, type: "email_verify" } });
-    check("mint verify token for new admin -> 200", mintAdminVerify.status === 200);
-    const verifyRes = await fetch(`${baseUrl}/api/auth/verify-email?token=${mintAdminVerify.body.token}`, { headers: { "X-Company-Slug": COMPANY, "X-Outlet-Slug": secondSlug } });
-    check("new admin verify-email link -> 200", verifyRes.status === 200);
+    const verifiedLogin = await api("/api/admin-auth/login", {
+      method: "POST",
+      body: { email: sibling.adminEmail, password: "password" },
+    });
+    check("...and can sign in once verified -> 200", verifiedLogin.status === 200);
 
-    const secondSettingsAfter = await api("/api/admin/settings", { slug: secondSlug, token: secondAdminToken });
-    check("new admin now verified", secondSettingsAfter.body.settings.adminEmailVerified === true);
+    const secondSettingsAfter = await api("/api/admin/settings", { slug: sibling.outletSlug, token: verifiedLogin.body.token });
+    check("new admin's console reports it verified", secondSettingsAfter.body.settings.adminEmailVerified === true);
 
-    // --- Existing seeded admin (verified since seed) unaffected by the new tenant ---
+    // --- The seeded admin (verified at seed) is untouched by all of this ---
     const originalSettings = await api("/api/admin/settings", { token: adminToken });
-    check("original tenant's admin still verified, untouched by second tenant", originalSettings.body.settings.adminEmailVerified === true);
+    check("this outlet's admin still verified, untouched by the sibling", originalSettings.body.settings.adminEmailVerified === true);
   } finally {
     stop();
   }

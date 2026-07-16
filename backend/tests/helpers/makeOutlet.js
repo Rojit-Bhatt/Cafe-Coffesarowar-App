@@ -1,12 +1,10 @@
-// Provisions a fresh, fully-usable outlet for a test: registers a company +
-// owner via the platform, verifies both emails, creates the outlet with its
-// own credentials, and hands back everything a suite needs to act as either
-// the owner or the outlet admin.
+// Test helpers for provisioning outlets through the real company flow.
 //
-// Most suites just want "a second isolated tenant to prove nothing leaks".
+// Most suites just need "a second isolated tenant to prove nothing leaks".
 // Before the company restructure that was one call to the platform's
-// onboard-a-business endpoint; now it's a company and an outlet under it, so
-// this helper keeps that setup to one line at the call site.
+// onboard-a-business endpoint; now an outlet lives under a company, so these
+// keep that setup to one line at the call site.
+
 const makeApi = (baseUrl) => (path, { method = "GET", token, company, outlet, body } = {}) => {
   const headers = { "Content-Type": "application/json" };
   if (company) headers["X-Company-Slug"] = company;
@@ -27,27 +25,79 @@ const verifyAdmin = async (api, email) => {
   await api(`/api/admin-auth/verify-email?token=${mint.body.token}`);
 };
 
-// Returns { companySlug, outletSlug, outletId, ownerEmail, ownerToken,
-//           adminEmail, adminToken }
-async function makeOutlet(baseUrl, {
-  platformToken,
-  label = `t${Date.now()}${Math.floor(Math.random() * 1000)}`,
+const login = (api, email, password = "password") =>
+  api("/api/admin-auth/login", { method: "POST", body: { email, password } });
+
+// A second outlet under the SEEDED company (coffesarowar), which has a
+// comped plan with slots to spare. Preferred for isolation tests: two
+// outlets of ONE company share an owner and must STILL leak nothing between
+// them, which is strictly stronger than isolating two unrelated businesses.
+// Returns { outletSlug, outletId, adminEmail, adminToken }.
+// `verify: false` leaves the new outlet's admin unverified — for suites that
+// test the verification flow itself. Note an unverified admin can't sign in,
+// so adminToken comes back null in that case.
+async function makeSiblingOutlet(baseUrl, {
+  label = `s${Date.now()}${Math.floor(Math.random() * 1000)}`,
   category = "cafe",
-  password = "password",
+  verify = true,
+} = {}) {
+  const api = makeApi(baseUrl);
+
+  const ownerLogin = await login(api, "owner@coffesarowar.com");
+  const outletSlug = `outlet-${label}`;
+  const adminEmail = `admin-${label}@test.com`;
+
+  const created = await api("/api/company/outlets", {
+    method: "POST",
+    token: ownerLogin.body.token,
+    body: {
+      name: `Outlet ${label}`,
+      slug: outletSlug,
+      category,
+      adminName: `Admin ${label}`,
+      adminEmail,
+      adminPassword: "password",
+    },
+  });
+
+  let adminToken = null;
+  if (verify) {
+    await verifyAdmin(api, adminEmail);
+    const adminLogin = await login(api, adminEmail);
+    adminToken = adminLogin.body?.token;
+  }
+
+  return {
+    outletSlug,
+    outletId: created.body?.outlet?.id,
+    adminEmail,
+    adminToken,
+    ownerToken: ownerLogin.body.token,
+  };
+}
+
+// A whole separate company with one outlet — for the cases that genuinely
+// need a different COMPANY, not just a different outlet (cross-company
+// isolation, per-company subscriptions).
+// Returns { companySlug, outletSlug, ownerEmail, ownerToken, adminEmail, adminToken, platformToken }.
+async function makeCompanyWithOutlet(baseUrl, {
+  platformToken,
+  label = `c${Date.now()}${Math.floor(Math.random() * 1000)}`,
+  category = "cafe",
+  withOutlet = true,
 } = {}) {
   const api = makeApi(baseUrl);
 
   let token = platformToken;
   if (!token) {
-    const login = await api("/api/platform/login", {
+    const platformLogin = await api("/api/platform/login", {
       method: "POST",
       body: { email: "admin@stampd.co", password: "password" },
     });
-    token = login.body.token;
+    token = platformLogin.body.token;
   }
 
   const companySlug = `co-${label}`;
-  const outletSlug = "main";
   const ownerEmail = `owner-${label}@test.com`;
   const adminEmail = `admin-${label}@test.com`;
 
@@ -59,46 +109,43 @@ async function makeOutlet(baseUrl, {
       slug: companySlug,
       ownerName: `Owner ${label}`,
       ownerEmail,
-      ownerPassword: password,
+      ownerPassword: "password",
     },
   });
   await verifyAdmin(api, ownerEmail);
+  const ownerLogin = await login(api, ownerEmail);
 
-  const ownerLogin = await api("/api/admin-auth/login", {
-    method: "POST",
-    body: { email: ownerEmail, password },
-  });
-  const ownerToken = ownerLogin.body.token;
+  const result = {
+    companySlug,
+    ownerEmail,
+    ownerToken: ownerLogin.body.token,
+    platformToken: token,
+  };
+
+  if (!withOutlet) return result;
 
   const created = await api("/api/company/outlets", {
     method: "POST",
-    token: ownerToken,
+    token: result.ownerToken,
     body: {
       name: `Outlet ${label}`,
-      slug: outletSlug,
+      slug: "main",
       category,
       adminName: `Admin ${label}`,
       adminEmail,
-      adminPassword: password,
+      adminPassword: "password",
     },
   });
   await verifyAdmin(api, adminEmail);
-
-  const adminLogin = await api("/api/admin-auth/login", {
-    method: "POST",
-    body: { email: adminEmail, password },
-  });
+  const adminLogin = await login(api, adminEmail);
 
   return {
-    companySlug,
-    outletSlug,
+    ...result,
+    outletSlug: "main",
     outletId: created.body?.outlet?.id,
-    ownerEmail,
-    ownerToken,
     adminEmail,
     adminToken: adminLogin.body?.token,
-    platformToken: token,
   };
 }
 
-module.exports = { makeOutlet, makeApi };
+module.exports = { makeApi, makeSiblingOutlet, makeCompanyWithOutlet, verifyAdmin };

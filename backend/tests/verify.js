@@ -126,7 +126,7 @@ async function runTests() {
       // 5th stamp milestone trigger assertions
       assert(claimResult.data.rewardTriggered === true, "Reward MUST trigger on 5th stamp");
       assert(claimResult.data.stampsEarned === 0, "Stamps earned MUST reset to 0 on 5th stamp");
-      assert(claimResult.data.voucherCode.startsWith("COFF-"), "Voucher code must start with COFF- (per-tenant prefix)");
+      assert(claimResult.data.voucherCode.startsWith("DURB-"), "Voucher code must start with DURB- (per-outlet prefix)");
       
       // Verify database state matches
       const card = await StampCard.findOne({ userId });

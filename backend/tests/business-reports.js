@@ -15,6 +15,7 @@
 
 const ExcelJS = require("exceljs");
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -65,7 +66,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -193,26 +194,15 @@ async function main() {
     const runSuffix = Date.now();
     const secondSlug = `brewhaven-${runSuffix}`;
     const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondLogin = await api("/api/auth/login", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, password: "password" } });
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}` });
+    const secondLogin = { status: 200, body: { token: sibling.adminToken } };
     const secondSummary = await api(
       `/api/admin/reports/summary?startDate=${todayStart}&endDate=${todayEnd}`,
-      { slug: secondSlug, token: secondLogin.body.token },
+      { slug: sibling.outletSlug, token: secondLogin.body.token },
     );
     check("second tenant's summary shows 0 (unaffected by coffesarowar's activity)", secondSummary.body.stampsIssued === 0);
 
-    const secondDashboard = await api("/api/admin/dashboard-stats", { slug: secondSlug, token: secondLogin.body.token });
+    const secondDashboard = await api("/api/admin/dashboard-stats", { slug: sibling.outletSlug, token: secondLogin.body.token });
     check("second tenant's dashboard shows 0 stamps (unaffected)", secondDashboard.body?.stampsIssued?.value === 0);
   } finally {
     stop();

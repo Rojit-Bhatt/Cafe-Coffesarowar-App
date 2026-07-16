@@ -13,6 +13,7 @@
 
 const ExcelJS = require("exceljs");
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -57,7 +58,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -171,24 +172,9 @@ async function main() {
     const runSuffix = Date.now();
     const secondSlug = `brewhaven-${runSuffix}`;
     const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondLogin = await api("/api/auth/login", {
-      method: "POST",
-      slug: secondSlug,
-      body: { email: secondAdminEmail, password: "password" },
-    });
-    const secondList = await api("/api/admin/menu", { slug: secondSlug, token: secondLogin.body.token });
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}` });
+    const secondLogin = { status: 200, body: { token: sibling.adminToken } };
+    const secondList = await api("/api/admin/menu", { slug: sibling.outletSlug, token: secondLogin.body.token });
     check(
       "second tenant's menu unaffected by coffesarowar's import",
       Array.isArray(secondList.body?.items) && secondList.body.items.length === 0,
@@ -197,7 +183,7 @@ async function main() {
     // 10. A "changed" row whose existingId belongs to another tenant is a no-op, not a cross-tenant write.
     const crossTenantConfirm = await api("/api/admin/menu/import/confirm", {
       method: "POST",
-      slug: secondSlug,
+      slug: sibling.outletSlug,
       token: secondLogin.body.token,
       body: {
         rows: [

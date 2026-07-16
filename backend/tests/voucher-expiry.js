@@ -36,7 +36,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });

@@ -65,7 +65,7 @@ async function main() {
     });
     check("onboard second tenant -> 200/201", onboardB.status === 200 || onboardB.status === 201);
 
-    const adminALogin = await api("/api/auth/login", {
+    const adminALogin = await api("/api/admin-auth/login", {
       method: "POST",
       slug: SLUG_A,
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },

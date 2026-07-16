@@ -1,4 +1,6 @@
 const Organization = require("../models/Organization");
+const Company = require("../models/Company");
+const { resolveProgram } = require("./programService");
 const StampClaimEvent = require("../models/StampClaimEvent");
 
 const TRENDING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -21,9 +23,19 @@ const getDiscoverBusinesses = async () => {
         createdAt: { $gte: since }
       });
 
+      const company = await Company.findOne({ _id: org.companyId });
+      // An outlet slug is only unique within its company, so /explore must
+      // carry the company slug too — it's a path component the client needs
+      // to build /[company]/[outlet], and the only place a slug crosses the
+      // API boundary as one.
+      if (!company || company.status !== "active") return null;
+      const program = resolveProgram(company, org);
+
       return {
         id: org._id.toString(),
         slug: org.slug,
+        companySlug: company.slug,
+        companyName: company.name,
         name: org.name,
         category: org.category,
         branding: {
@@ -36,7 +48,7 @@ const getDiscoverBusinesses = async () => {
           longitude: org.contact.longitude
         },
         program: {
-          rewardTitle: org.program.rewardTitle
+          rewardTitle: program.rewardTitle
         },
         createdAt: org.createdAt,
         recentStampCount
@@ -44,7 +56,7 @@ const getDiscoverBusinesses = async () => {
     })
   );
 
-  return { success: true, businesses };
+  return { success: true, businesses: businesses.filter(Boolean) };
 };
 
 module.exports = { getDiscoverBusinesses };

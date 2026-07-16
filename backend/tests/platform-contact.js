@@ -51,7 +51,7 @@ async function main() {
     const platformToken = platformLogin.body.token;
     check("platform login -> token issued", Boolean(platformToken));
 
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       slug: "durbarmarg",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },

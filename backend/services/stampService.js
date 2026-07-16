@@ -6,7 +6,9 @@ const StampCard = require("../models/StampCard");
 const Voucher = require("../models/Voucher");
 const StampClaimEvent = require("../models/StampClaimEvent");
 const Organization = require("../models/Organization");
+const Company = require("../models/Company");
 const User = require("../models/User");
+const { resolveProgram } = require("./programService");
 
 const TOKEN_TTL_SECONDS = 30;
 
@@ -35,6 +37,15 @@ const loadOrganizationOrThrow = async (organizationId) => {
   return org;
 };
 
+// An outlet's own program fields are null unless it explicitly overrides
+// them, so they must never be read straight off the document — resolve
+// against the owning company's defaults first. Returns the same shape
+// org.program used to have, fully populated.
+const loadProgram = async (org) => {
+  const company = org.companyId ? await Company.findOne({ _id: org.companyId }) : null;
+  return resolveProgram(company, org);
+};
+
 const generateVoucherCode = async (session, prefix) => {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const randomCode = crypto.randomBytes(4).toString("hex").toUpperCase();
@@ -55,7 +66,8 @@ const generateQRToken = async (adminUserId, organizationId, billAmount) => {
   }
 
   const org = await loadOrganizationOrThrow(organizationId);
-  const minBillAmount = org.program.minBillAmount || 0;
+  const program = await loadProgram(org);
+  const minBillAmount = program.minBillAmount || 0;
 
   if (minBillAmount > 0) {
     const amount = Number(billAmount);
@@ -144,8 +156,9 @@ const consumeDynamicQrToken = async ({ token, organizationId, session }) => {
 // reuse the exact same stamp-award logic without duplicating it. Requires an
 // open session (caller manages the transaction).
 const awardStampInTransaction = async ({ session, userId, organizationId, billAmount, org, now, token }) => {
-  const stampsRequired = org.program.stampsRequired;
-  const cooldownHours = org.program.cooldownHours;
+  const program = await loadProgram(org);
+  const stampsRequired = program.stampsRequired;
+  const cooldownHours = program.cooldownHours;
   const voucherPrefix = getVoucherPrefix(org);
   const claimedBillAmount = billAmount ?? null;
 
@@ -224,7 +237,7 @@ const awardStampInTransaction = async ({ session, userId, organizationId, billAm
 
   if (updatedCard.stampsEarned >= stampsRequired) {
     const voucherCode = await generateVoucherCode(session, voucherPrefix);
-    const voucherExpiryDays = org.program.voucherExpiryDays || 0;
+    const voucherExpiryDays = program.voucherExpiryDays || 0;
     const expiresAt = voucherExpiryDays > 0
       ? new Date(now.getTime() + voucherExpiryDays * 24 * 60 * 60 * 1000)
       : null;
@@ -249,12 +262,12 @@ const awardStampInTransaction = async ({ session, userId, organizationId, billAm
 
     return {
       success: true,
-      message: `Milestone reached! You have earned: ${org.program.rewardTitle}.`,
+      message: `Milestone reached! You have earned: ${program.rewardTitle}.`,
       data: {
         stampsEarned: 0,
         rewardTriggered: true,
         voucherCode,
-        rewardTitle: org.program.rewardTitle
+        rewardTitle: program.rewardTitle
       }
     };
   }
@@ -317,6 +330,7 @@ const getStampBalanceByUserId = async (userId, organizationId) => {
   }
 
   const org = await loadOrganizationOrThrow(organizationId);
+  const program = await loadProgram(org);
 
   let card = await StampCard.findOne({ userId, organizationId });
 
@@ -334,9 +348,9 @@ const getStampBalanceByUserId = async (userId, organizationId) => {
     data: {
       stampsEarned: card.stampsEarned,
       lastStampedAt: card.lastStampedAt,
-      stampsRequired: org.program.stampsRequired,
-      rewardTitle: org.program.rewardTitle,
-      rewardDescription: org.program.rewardDescription
+      stampsRequired: program.stampsRequired,
+      rewardTitle: program.rewardTitle,
+      rewardDescription: program.rewardDescription
     }
   };
 };

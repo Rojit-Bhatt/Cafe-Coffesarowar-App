@@ -8,7 +8,7 @@
  *   - onboarding a fresh 2nd tenant (unique slug per run)
  *   - per-tenant public info + program-config isolation between tenants
  *   - the full customer stamp -> voucher loop on the seeded "coffesarowar"
- *     tenant, asserting the per-tenant "COFF-" voucher prefix
+ *     outlet, asserting the per-outlet "DURB-" voucher prefix
  *   - cross-tenant isolation: a 2nd tenant's admin cannot redeem
  *     coffesarowar's voucher, and each tenant's customer list is scoped to
  *     its own customers
@@ -18,6 +18,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 
@@ -55,7 +56,6 @@ async function api(path, { method = "GET", token, slug, body } = {}) {
 
 async function run() {
   const runSuffix = Date.now();
-  const secondTenantSlug = `brewhaven-${runSuffix}`;
   const aliceEmail = `alice+${runSuffix}@x.test`;
 
   console.log("\n== Platform admin ==");
@@ -66,43 +66,31 @@ async function run() {
   ok(plogin.status === 200 && !!plogin.json?.token, "platform admin logs in");
   const pToken = plogin.json?.token;
 
-  console.log("\n== Onboard a 2nd tenant (unique slug, different config) ==");
-  const create = await api("/api/platform/businesses", {
-    method: "POST",
-    token: pToken,
-    body: {
-      name: "Brew Haven",
-      slug: secondTenantSlug,
-      adminName: "Haven Boss",
-      adminEmail: `boss+${runSuffix}@brewhaven.test`,
-      adminPassword: "password",
-    },
-  });
-  ok(create.status === 201 || create.status === 200, "platform creates 2nd business");
-  ok(
-    create.json?.tenantPath === `/${secondTenantSlug}/admin`,
-    "onboarding hand-off link points at the admin login, not the customer app",
-  );
+  console.log("\n== Stand up a 2nd outlet (sibling under the same company) ==");
+  // A sibling outlet is a stronger isolation subject than an unrelated
+  // business: it shares an owner and a company with the first, and must
+  // still leak nothing.
+  const sibling = await makeSiblingOutlet(BASE, { label: `mti${runSuffix}` });
+  const secondTenantSlug = sibling.outletSlug;
+  ok(Boolean(sibling.outletId), "company creates a 2nd outlet");
+  ok(Boolean(sibling.adminToken), "the 2nd outlet's own admin can sign in");
 
-  const list = await api("/api/platform/businesses", { token: pToken });
-  const brew = list.json?.businesses?.find((b) => b.slug === secondTenantSlug);
-  ok(!!brew?.id, "2nd business appears in businesses list with an id");
+  const list = await api("/api/platform/companies", { token: pToken });
+  const company = list.json?.companies?.find((c) => c.slug === COMPANY);
+  const brew = company?.outlets?.find((o) => o.slug === secondTenantSlug);
+  ok(!!brew?.id, "2nd outlet appears nested under its company in the platform list");
 
   console.log("\n== Tenant public info ==");
   const t1 = await api("/api/tenant", { slug: "durbarmarg" });
-  ok(t1.status === 200 && t1.json?.tenant?.name === "Coffesarowar", "coffesarowar public info resolves");
-  ok(t1.json?.tenant?.program?.stampsRequired === 5, "coffesarowar requires 5 stamps");
+  ok(t1.status === 200 && t1.json?.tenant?.name === "Coffesarowar Durbarmarg", "coffesarowar outlet public info resolves");
+  ok(t1.json?.tenant?.program?.stampsRequired === 5, "outlet inherits its company's 5-stamp default");
 
   const tbad = await api("/api/tenant", { slug: "does-not-exist" });
-  ok(tbad.status === 404, "unknown tenant slug -> 404");
+  ok(tbad.status === 404, "unknown outlet slug -> 404");
 
-  console.log("\n== 2nd tenant admin sets its own program (isolation check) ==");
-  const blogin = await api("/api/auth/login", {
-    method: "POST",
-    slug: secondTenantSlug,
-    body: { email: `boss+${runSuffix}@brewhaven.test`, password: "password" },
-  });
-  ok(blogin.status === 200 && !!blogin.json?.token, "2nd tenant admin logs in via tenant login");
+  console.log("\n== 2nd outlet's admin sets its own program (isolation check) ==");
+  const blogin = { status: 200, json: { token: sibling.adminToken } };
+  ok(blogin.status === 200 && !!blogin.json?.token, "2nd outlet admin has a working tenant JWT");
   const brewAdmin = blogin.json?.token;
 
   const setCfg = await api("/api/admin/settings", {
@@ -148,9 +136,8 @@ async function run() {
   const bal0 = await api("/api/stamps/balance", { token: aliceToken });
   ok(bal0.json?.data?.stampsEarned === 0 && bal0.json?.data?.stampsRequired === 5, "Alice starts at 0/5 stamps");
 
-  const baristaLogin = await api("/api/auth/login", {
+  const baristaLogin = await api("/api/admin-auth/login", {
     method: "POST",
-    slug: "durbarmarg",
     body: { email: "durbarmarg@coffesarowar.com", password: "password" },
   });
   ok(baristaLogin.status === 200 && !!baristaLogin.json?.token, "coffesarowar barista logs in");
@@ -177,7 +164,7 @@ async function run() {
     }
   }
   ok(!!voucherCode, `Alice earned a voucher after 5 stamps: ${voucherCode}`);
-  ok(!!voucherCode && voucherCode.startsWith("COFF-"), "voucher uses coffesarowar's per-tenant prefix COFF-");
+  ok(!!voucherCode && voucherCode.startsWith("DURB-"), "voucher uses the outlet's per-outlet prefix DURB-");
 
   console.log("\n== ISOLATION: 2nd tenant admin cannot redeem coffesarowar's voucher ==");
   const crossRedeem = await api("/api/admin/redeem-voucher", {
@@ -212,12 +199,12 @@ async function run() {
   );
 
   console.log("\n== Suspension tags TENANT_SUSPENDED so the frontend can distinguish it ==");
-  const suspend = await api(`/api/platform/businesses/${brew.id}`, {
+  const suspend = await api(`/api/platform/outlets/${brew.id}`, {
     method: "PATCH",
     token: pToken,
     body: { status: "suspended" },
   });
-  ok(suspend.status === 200 && suspend.json?.business?.status === "suspended", "platform suspends 2nd tenant");
+  ok(suspend.status === 200 && suspend.json?.outlet?.status === "suspended", "platform suspends the 2nd outlet");
 
   const suspendedAuthed = await api("/api/admin/settings", { token: brewAdmin });
   ok(

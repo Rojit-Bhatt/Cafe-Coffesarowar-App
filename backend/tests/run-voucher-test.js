@@ -229,8 +229,8 @@ app.post("/api/test/reset-cooldown", async (req, res) => {
     if (!earnedVoucherCode) {
       throw new Error("No voucher generated after reaching the 5-stamp milestone.");
     }
-    if (!earnedVoucherCode.startsWith("COFF-")) {
-      throw new Error(`Voucher ${earnedVoucherCode} does not use coffesarowar's COFF- prefix.`);
+    if (!earnedVoucherCode.startsWith("DURB-")) {
+      throw new Error(`Voucher ${earnedVoucherCode} does not use the durbarmarg outlet's DURB- prefix.`);
     }
     console.log(`Successfully reached milestone! Generated Voucher Code: ${earnedVoucherCode}`);
 

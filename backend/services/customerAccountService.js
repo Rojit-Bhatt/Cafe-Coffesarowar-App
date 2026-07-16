@@ -5,10 +5,12 @@ const CustomerAccount = require("../models/CustomerAccount");
 const AccountVerificationToken = require("../models/AccountVerificationToken");
 const User = require("../models/User");
 const Organization = require("../models/Organization");
+const Company = require("../models/Company");
 const StampCard = require("../models/StampCard");
 const Voucher = require("../models/Voucher");
 const { ensureUserStampCard, formatAuthPayload } = require("./authService");
 const { generateGlobalSessionToken } = require("../utils/tokenUtils");
+const { resolveProgram } = require("./programService");
 const { sendEmail } = require("./emailService");
 
 const SALT_ROUNDS = 10;
@@ -367,6 +369,8 @@ const getMyTenants = async ({ customerAccountId }) => {
     memberships.map(async (membership) => {
       const org = await Organization.findOne({ _id: membership.organizationId });
       if (!org || org.status !== "active") return null;
+      const company = await Company.findOne({ _id: org.companyId });
+      const program = resolveProgram(company, org);
 
       const stampCard = await StampCard.findOne({
         userId: membership._id,
@@ -383,6 +387,8 @@ const getMyTenants = async ({ customerAccountId }) => {
       return {
         organizationId: org._id.toString(),
         slug: org.slug,
+        // The client builds /[company]/[outlet] from these two.
+        companySlug: company ? company.slug : null,
         name: org.name,
         branding: {
           logoUrl: org.branding.logoUrl,
@@ -390,8 +396,8 @@ const getMyTenants = async ({ customerAccountId }) => {
           primaryColor: org.branding.primaryColor
         },
         stampsEarned: stampCard ? stampCard.stampsEarned : 0,
-        stampsRequired: org.program.stampsRequired,
-        rewardTitle: org.program.rewardTitle,
+        stampsRequired: program.stampsRequired,
+        rewardTitle: program.rewardTitle,
         validVoucherCount,
         lastStampedAt: stampCard ? stampCard.lastStampedAt : null
       };

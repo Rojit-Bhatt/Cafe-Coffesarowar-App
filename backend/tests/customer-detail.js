@@ -9,6 +9,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -32,7 +33,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -78,31 +79,13 @@ async function main() {
     check("scanHistory has 3 entries", Array.isArray(me?.scanHistory) && me.scanHistory.length === 3);
 
     // Tenant isolation: a 2nd tenant's customer list doesn't see this activity.
-    const platformLogin = await api("/api/platform/login", {
-      method: "POST",
-      slug: undefined,
-      body: { email: "admin@stampd.co", password: "password" },
-    });
-    const platformToken = platformLogin.body.token;
-    const runSuffix = Date.now();
-    const secondSlug = `brewhaven-${runSuffix}`;
-    const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondLogin = await api("/api/auth/login", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, password: "password" } });
-    const secondList = await api("/api/admin/customers", { slug: secondSlug, token: secondLogin.body.token });
+    // A sibling outlet under the SAME company — a stronger isolation test
+    // than an unrelated business: these two share an owner and must still
+    // leak nothing between them.
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `cd${Date.now()}` });
+    const secondList = await api("/api/admin/customers", { slug: sibling.outletSlug, token: sibling.adminToken });
     check(
-      "second tenant's customer list has no coffesarowar customers",
+      "a sibling outlet's customer list has none of this outlet's customers",
       Array.isArray(secondList.body?.data) && secondList.body.data.every((c) => c.email !== email),
     );
   } finally {

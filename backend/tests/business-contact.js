@@ -11,6 +11,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -34,7 +35,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -86,19 +87,8 @@ async function main() {
     const runSuffix = Date.now();
     const secondSlug = `brewhaven-${runSuffix}`;
     const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondPublicTenant = await api("/api/tenant", { slug: secondSlug });
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}` });
+    const secondPublicTenant = await api("/api/tenant", { slug: sibling.outletSlug });
     check("second tenant's contact is untouched (empty default)", secondPublicTenant.body.tenant?.contact?.phone === "");
     check("second tenant's contact has no coffesarowar email", secondPublicTenant.body.tenant?.contact?.email !== contactPayload.email);
   } finally {

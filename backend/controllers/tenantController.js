@@ -3,6 +3,8 @@ const User = require("../models/User");
 const { getUpcomingForOrg } = require("../services/eventService");
 const { BUSINESS_CATEGORIES } = require("../config/platform");
 const { getSubscriptionSummary } = require("../services/subscriptionService");
+const { resolveProgram } = require("../services/programService");
+const Company = require("../models/Company");
 
 const createHttpError = (message, statusCode) => {
   const error = new Error(message);
@@ -14,6 +16,8 @@ const getPublicTenant = async (req, res, next) => {
   try {
     const { organization } = req;
     const upcomingEvents = await getUpcomingForOrg(organization._id);
+    // req.company is already loaded by resolveTenant.
+    const program = resolveProgram(req.company, organization);
 
     res.status(200).json({
       success: true,
@@ -27,9 +31,9 @@ const getPublicTenant = async (req, res, next) => {
         upcomingEvents,
         menuEnabled: organization.menuEnabled,
         program: {
-          stampsRequired: organization.program.stampsRequired,
-          rewardTitle: organization.program.rewardTitle,
-          rewardDescription: organization.program.rewardDescription
+          stampsRequired: program.stampsRequired,
+          rewardTitle: program.rewardTitle,
+          rewardDescription: program.rewardDescription
         }
       }
     });

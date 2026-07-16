@@ -18,6 +18,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -107,7 +108,7 @@ async function main() {
     check("complete-profile with phone -> 200", completeOk.status === 200);
 
     // --- DELETE /api/admin/menu/:id ---
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -144,23 +145,8 @@ async function main() {
     });
     const platformToken = platformLogin.body.token;
     const secondSlug = `gapcafe-${runSuffix}`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Gap Cafe",
-        slug: secondSlug,
-        adminName: "Gap Boss",
-        adminEmail: `gapboss+${runSuffix}@test.co`,
-        adminPassword: "password",
-      },
-    });
-    const secondAdminLogin = await api("/api/auth/login", {
-      method: "POST",
-      slug: secondSlug,
-      body: { email: `gapboss+${runSuffix}@test.co`, password: "password" },
-    });
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}` });
+    const secondAdminLogin = { status: 200, body: { token: sibling.adminToken } };
     const secondAdminToken = secondAdminLogin.body.token;
 
     const createdAgain = await api("/api/admin/menu", {

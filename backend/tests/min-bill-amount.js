@@ -3,12 +3,13 @@
  *
  * Self-contained: boots its own server on a dedicated port against the
  * in-memory mock DB. Drives generate-qr with and without a configured
- * minimum, and confirms a second tenant is unaffected by the first's setting.
+ * minimum, and confirms a sibling outlet is unaffected by this one's setting.
  *
  * Run directly: `node tests/min-bill-amount.js`
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -32,7 +33,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -88,41 +89,17 @@ async function main() {
     });
     check("token from valid generate-qr is claimable", claim.status === 200);
 
-    // 6. Tenant isolation: a 2nd tenant's generate-qr is unaffected by
-    //    coffesarowar's minBillAmount.
-    const platformLogin = await api("/api/platform/login", {
-      method: "POST",
-      slug: undefined,
-      body: { email: "admin@stampd.co", password: "password" },
-    });
-    const platformToken = platformLogin.body.token;
-    const runSuffix = Date.now();
-    const secondSlug = `brewhaven-${runSuffix}`;
-    const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondLogin = await api("/api/auth/login", {
-      method: "POST",
-      slug: secondSlug,
-      body: { email: secondAdminEmail, password: "password" },
-    });
-    check("second tenant admin logs in", secondLogin.status === 200);
+    // 6. Isolation + inheritance: a sibling outlet under the SAME company
+    //    inherits the company's defaults, so this outlet's own
+    //    minBillAmount override must not reach it.
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `mba${Date.now()}` });
+    check("sibling outlet's admin logs in", Boolean(sibling.adminToken));
     const secondGen = await api("/api/admin/generate-qr", {
       method: "POST",
-      slug: secondSlug,
-      token: secondLogin.body.token,
+      slug: sibling.outletSlug,
+      token: sibling.adminToken,
     });
-    check("second tenant's generate-qr unaffected by coffesarowar's minBillAmount", secondGen.status === 201);
+    check("sibling outlet's generate-qr unaffected by this outlet's minBillAmount override", secondGen.status === 201);
   } finally {
     stop();
   }

@@ -11,6 +11,7 @@
  */
 
 const { bootServer } = require("./helpers/bootServer");
+const { makeSiblingOutlet } = require("./helpers/makeOutlet");
 
 const COMPANY = "coffesarowar";
 const SLUG = "durbarmarg";
@@ -34,7 +35,7 @@ async function main() {
   };
 
   try {
-    const adminLogin = await api("/api/auth/login", {
+    const adminLogin = await api("/api/admin-auth/login", {
       method: "POST",
       body: { email: "durbarmarg@coffesarowar.com", password: "password" },
     });
@@ -82,21 +83,10 @@ async function main() {
     const runSuffix = Date.now();
     const secondSlug = `brewhaven-${runSuffix}`;
     const secondAdminEmail = `boss+${runSuffix}@brewhaven.test`;
-    await api("/api/platform/businesses", {
-      method: "POST",
-      slug: undefined,
-      token: platformToken,
-      body: {
-        name: "Brew Haven",
-        slug: secondSlug,
-        adminName: "Haven Boss",
-        adminEmail: secondAdminEmail,
-        adminPassword: "password",
-      },
-    });
-    const secondLogin = await api("/api/auth/login", { method: "POST", slug: secondSlug, body: { email: secondAdminEmail, password: "password" } });
-    await api("/api/admin/settings", { method: "PATCH", slug: secondSlug, token: secondLogin.body.token, body: { menuEnabled: true } });
-    const secondPublicMenu = await api("/api/menu", { slug: secondSlug });
+    const sibling = await makeSiblingOutlet(baseUrl, { label: `sib${Date.now()}` });
+    const secondLogin = { status: 200, body: { token: sibling.adminToken } };
+    await api("/api/admin/settings", { method: "PATCH", slug: sibling.outletSlug, token: secondLogin.body.token, body: { menuEnabled: true } });
+    const secondPublicMenu = await api("/api/menu", { slug: sibling.outletSlug });
     check(
       "second tenant's menu has no coffesarowar items",
       Array.isArray(secondPublicMenu.body.items) && secondPublicMenu.body.items.every((i) => i.name !== "D4 Featured Latte"),
