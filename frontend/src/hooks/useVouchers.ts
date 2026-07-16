@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
+import { useTenant } from "../context/TenantContext";
 
 export interface Voucher {
   voucherCode: string;
@@ -9,8 +10,9 @@ export interface Voucher {
 }
 
 export function useVouchers() {
+  const { slug } = useTenant();
   return useQuery<Voucher[]>({
-    queryKey: ["vouchers"],
+    queryKey: ["vouchers", slug],
     queryFn: async () => {
       const response = await apiRequest<{ success: boolean; vouchers: Voucher[] }>(
         "/api/vouchers/my-wallet",

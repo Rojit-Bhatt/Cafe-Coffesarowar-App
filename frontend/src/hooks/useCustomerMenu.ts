@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
+import { useTenant } from "../context/TenantContext";
 
 export interface CustomerMenuItem {
   id: string;
@@ -11,8 +12,9 @@ export interface CustomerMenuItem {
 }
 
 export function useCustomerMenu() {
+  const { slug } = useTenant();
   return useQuery<{ menuEnabled: boolean; items: CustomerMenuItem[] }>({
-    queryKey: ["customerMenu"],
+    queryKey: ["customerMenu", slug],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; menuEnabled: boolean; items: CustomerMenuItem[] }>(
         "/api/menu",

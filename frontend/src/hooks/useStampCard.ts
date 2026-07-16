@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
+import { useTenant } from "../context/TenantContext";
 
 export interface StampCardData {
   stampsEarned: number;
@@ -10,8 +11,9 @@ export interface StampCardData {
 }
 
 export function useStampCard() {
+  const { slug } = useTenant();
   return useQuery<StampCardData>({
-    queryKey: ["stampCard"],
+    queryKey: ["stampCard", slug],
     queryFn: async () => {
       const response = await apiRequest<{ success: boolean; data: StampCardData }>(
         "/api/stamps/balance",
