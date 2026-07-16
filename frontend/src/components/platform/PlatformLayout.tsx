@@ -15,16 +15,16 @@ interface NavEntry {
 }
 
 const BASE_NAV: NavEntry[] = [
-  { to: "", end: true, label: "Businesses", Icon: Building2 },
+  { to: "", end: true, label: "Companies", Icon: Building2 },
   { to: "analytics", label: "Analytics", Icon: BarChart3 },
   { to: "audit-log", label: "Activity", Icon: History },
   { to: "contact", label: "Contact", Icon: Phone },
 ];
-// Onboarding a business and managing the platform team are both
-// owner-only actions on the backend (isPlatformOwner) — hidden from a
-// support admin's nav rather than left visible only to fail on submit.
+// Registering a company and managing the platform team are both
+// owner-only on the backend (isPlatformOwner) — hidden from a support
+// admin's nav rather than left visible only to fail on submit.
 const OWNER_ONLY_NAV: NavEntry[] = [
-  { to: "onboard", label: "Onboard new", Icon: PlusCircle },
+  { to: "register", label: "Register company", Icon: PlusCircle },
   { to: "team", label: "Team", Icon: Users },
   { to: "plans", label: "Plans", Icon: Tag },
   { to: "subscription-keys", label: "Subscription Keys", Icon: KeyRound },

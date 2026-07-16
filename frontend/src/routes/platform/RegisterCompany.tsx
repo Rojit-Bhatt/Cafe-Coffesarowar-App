@@ -12,18 +12,18 @@ const slugify = (s: string) =>
 
 interface CreatedBusiness {
   name: string;
-  tenantPath: string;
+  companyPath: string;
 }
 
-export default function OnboardBusiness() {
+export default function RegisterCompany() {
   const qc = useQueryClient();
   const [form, setForm] = useState({
     name: "",
     slug: "",
     category: "other" as BusinessCategory,
-    adminName: "",
-    adminEmail: "",
-    adminPassword: "",
+    ownerName: "",
+    ownerEmail: "",
+    ownerPassword: "",
   });
   const [slugEdited, setSlugEdited] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,34 +37,34 @@ export default function OnboardBusiness() {
     setForm((f) => ({ ...f, name: v, slug: slugEdited ? f.slug : slugify(v) }));
 
   const submit = async () => {
-    if (!form.name || !form.slug || !form.adminName || !form.adminEmail || !form.adminPassword) {
+    if (!form.name || !form.slug || !form.ownerName || !form.ownerEmail || !form.ownerPassword) {
       toast.error("A few fields still need filling in.");
       return;
     }
     setBusy(true);
     try {
-      const res = await apiRequest<{ success: boolean; business: { name: string }; tenantPath: string }>(
-        "/api/platform/businesses",
+      const res = await apiRequest<{ success: boolean; company: { name: string }; companyPath: string }>(
+        "/api/platform/companies",
         { method: "POST", role: "platform", body: form },
       );
       qc.invalidateQueries({ queryKey: ["platformBusinesses"] });
-      setDone({ name: res.business.name, tenantPath: res.tenantPath });
-      toast.success(`${res.business.name} is live!`);
+      setDone({ name: res.company.name, companyPath: res.companyPath });
+      toast.success(`${res.company.name} is live!`);
     } catch (err) {
-      toast.error((err as Error).message || "Couldn't onboard that business — try again.");
+      toast.error((err as Error).message || "Couldn't register that company — try again.");
     } finally {
       setBusy(false);
     }
   };
 
   const reset = () => {
-    setForm({ name: "", slug: "", category: "other", adminName: "", adminEmail: "", adminPassword: "" });
+    setForm({ name: "", slug: "", category: "other", ownerName: "", ownerEmail: "", ownerPassword: "" });
     setSlugEdited(false);
     setDone(null);
   };
 
   if (done) {
-    const url = `${window.location.origin}${done.tenantPath}`;
+    const url = `${window.location.origin}${done.companyPath}`;
     return (
       <div className="max-w-[620px]">
         <Link to="/platform" className="mb-3.5 inline-block text-[13px] text-[var(--muted)]">
@@ -104,7 +104,7 @@ export default function OnboardBusiness() {
               to="/platform"
               className="rounded-full border border-[var(--line)] bg-white px-5 py-3 text-sm font-bold"
             >
-              Back to businesses
+              Back to companies
             </Link>
             <button
               onClick={reset}
@@ -125,7 +125,7 @@ export default function OnboardBusiness() {
         ← Businesses
       </Link>
       <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">
-        Onboard a new business
+        Register a new company
       </h1>
       <p className="mb-6 text-[var(--muted)]">
         Create the tenant and its first admin login. You’ll get a link to hand off to the owner.
@@ -170,21 +170,21 @@ export default function OnboardBusiness() {
         <Card title="Business admin login">
           <div className="flex flex-col gap-3">
             <input
-              value={form.adminName}
-              onChange={(e) => set("adminName", e.target.value)}
+              value={form.ownerName}
+              onChange={(e) => set("ownerName", e.target.value)}
               placeholder="Owner name"
               className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--plat)] focus:outline-none"
             />
             <input
-              value={form.adminEmail}
-              onChange={(e) => set("adminEmail", e.target.value)}
+              value={form.ownerEmail}
+              onChange={(e) => set("ownerEmail", e.target.value)}
               placeholder="Owner email"
               className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--plat)] focus:outline-none"
             />
             <input
               type="password"
-              value={form.adminPassword}
-              onChange={(e) => set("adminPassword", e.target.value)}
+              value={form.ownerPassword}
+              onChange={(e) => set("ownerPassword", e.target.value)}
               placeholder="Temporary password"
               className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--plat)] focus:outline-none"
             />

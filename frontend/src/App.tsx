@@ -37,9 +37,9 @@ const ForgotPassword = lazy(() => import('./routes/ForgotPassword'));
 const ResetPassword = lazy(() => import('./routes/ResetPassword'));
 const PlatformLanding = lazy(() => import('./routes/platform/PlatformLanding'));
 const PlatformLogin = lazy(() => import('./routes/platform/PlatformLogin'));
-const Businesses = lazy(() => import('./routes/platform/Businesses'));
-const OnboardBusiness = lazy(() => import('./routes/platform/OnboardBusiness'));
-const BusinessDetail = lazy(() => import('./routes/platform/BusinessDetail'));
+const Companies = lazy(() => import('./routes/platform/Companies'));
+const RegisterCompany = lazy(() => import('./routes/platform/RegisterCompany'));
+const CompanyDetail = lazy(() => import('./routes/platform/CompanyDetail'));
 const PlatformSettings = lazy(() => import('./routes/platform/PlatformSettings'));
 const PlatformContact = lazy(() => import('./routes/platform/PlatformContact'));
 const PlatformAuditLog = lazy(() => import('./routes/platform/PlatformAuditLog'));
@@ -113,9 +113,9 @@ export default function App() {
               CustomerAccount identity isn't tenant-scoped. */}
           <Route path="/verify-email" element={<GlobalVerifyEmail />} />
           <Route path="/platform" element={<PlatformLayout />}>
-            <Route index element={<Businesses />} />
-            <Route path="onboard" element={<OnboardBusiness />} />
-            <Route path="business/:id" element={<BusinessDetail />} />
+            <Route index element={<Companies />} />
+            <Route path="register" element={<RegisterCompany />} />
+            <Route path="company/:id" element={<CompanyDetail />} />
             <Route path="settings" element={<PlatformSettings />} />
             <Route path="contact" element={<PlatformContact />} />
             <Route path="audit-log" element={<PlatformAuditLog />} />
