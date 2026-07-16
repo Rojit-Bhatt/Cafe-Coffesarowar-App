@@ -9,6 +9,9 @@ const {
   getContact,
   updateContact
 } = require("../services/platformConfigService");
+const { listRecent } = require("../services/platformAuditService");
+const { getPlatformAnalytics } = require("../services/platformAnalyticsService");
+const User = require("../models/User");
 
 const platformLogin = async (req, res, next) => {
   try {
@@ -32,13 +35,16 @@ const getBusinesses = async (req, res, next) => {
 const postBusiness = async (req, res, next) => {
   try {
     const { name, slug, adminName, adminEmail, adminPassword, category } = req.body;
+    const actor = await User.findOne({ _id: req.user.id });
     const result = await createBusiness({
       name,
       slug,
       adminName,
       adminEmail,
       adminPassword,
-      category
+      category,
+      actorId: req.user.id,
+      actorName: actor ? actor.name : "Unknown"
     });
     res.status(201).json(result);
   } catch (error) {
@@ -60,8 +66,34 @@ const patchBusiness = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, category, status, adminEmail } = req.body;
-    const result = await updateBusiness(id, { name, category, status, adminEmail });
+    const actor = await User.findOne({ _id: req.user.id });
+    const result = await updateBusiness(id, {
+      name,
+      category,
+      status,
+      adminEmail,
+      actorId: req.user.id,
+      actorName: actor ? actor.name : "Unknown"
+    });
     res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAuditLog = async (req, res, next) => {
+  try {
+    const entries = await listRecent(100);
+    res.status(200).json({ success: true, entries });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAnalytics = async (req, res, next) => {
+  try {
+    const stats = await getPlatformAnalytics();
+    res.status(200).json({ success: true, ...stats });
   } catch (error) {
     next(error);
   }
@@ -100,6 +132,8 @@ module.exports = {
   postBusiness,
   getBusinessById,
   patchBusiness,
+  getAuditLog,
+  getAnalytics,
   getPublicPlatformContact,
   getPlatformContactAdmin,
   patchPlatformContact

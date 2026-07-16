@@ -5,6 +5,8 @@ const {
   postBusiness,
   getBusinessById,
   patchBusiness,
+  getAuditLog,
+  getAnalytics,
   getPublicPlatformContact,
   getPlatformContactAdmin,
   patchPlatformContact
@@ -18,6 +20,8 @@ router.get("/businesses", verifyToken, isPlatformAdmin, getBusinesses);
 router.post("/businesses", verifyToken, isPlatformAdmin, postBusiness);
 router.get("/businesses/:id", verifyToken, isPlatformAdmin, getBusinessById);
 router.patch("/businesses/:id", verifyToken, isPlatformAdmin, patchBusiness);
+router.get("/audit-log", verifyToken, isPlatformAdmin, getAuditLog);
+router.get("/analytics", verifyToken, isPlatformAdmin, getAnalytics);
 router.get("/public-contact", getPublicPlatformContact);
 router.get("/contact", verifyToken, isPlatformAdmin, getPlatformContactAdmin);
 router.patch("/contact", verifyToken, isPlatformAdmin, patchPlatformContact);

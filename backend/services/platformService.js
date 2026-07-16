@@ -6,6 +6,7 @@ const Voucher = require("../models/Voucher");
 const { generateAuthToken } = require("../utils/tokenUtils");
 const { DEFAULT_PROGRAM, BUSINESS_CATEGORIES } = require("../config/platform");
 const { sendVerifyEmail } = require("./authService");
+const { logAction } = require("./platformAuditService");
 
 const SALT_ROUNDS = 10;
 
@@ -104,7 +105,7 @@ const listBusinesses = async () => {
   };
 };
 
-const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword, category }) => {
+const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword, category, actorId, actorName }) => {
   if (!name || !slug || !adminName || !adminEmail || !adminPassword) {
     throw createHttpError(
       "name, slug, adminName, adminEmail, and adminPassword are required.",
@@ -150,6 +151,15 @@ const createBusiness = async ({ name, slug, adminName, adminEmail, adminPassword
 
   await sendVerifyEmail(admin, organization._id, normalizedSlug);
 
+  await logAction({
+    actorId,
+    actorName,
+    action: "onboard",
+    organizationId: organization._id,
+    targetName: organization.name,
+    details: `Onboarded with admin ${normalizedAdminEmail}`
+  });
+
   return {
     success: true,
     business: await buildBusinessStats(organization),
@@ -171,7 +181,7 @@ const getBusiness = async (id) => {
   };
 };
 
-const updateBusiness = async (id, { name, category, status, adminEmail }) => {
+const updateBusiness = async (id, { name, category, status, adminEmail, actorId, actorName }) => {
   const organization = await Organization.findOne({ _id: id });
 
   if (!organization) {
@@ -207,6 +217,7 @@ const updateBusiness = async (id, { name, category, status, adminEmail }) => {
   );
 
   let adminResult = null;
+  let adminEmailChanged = false;
 
   if (adminEmail !== undefined) {
     const normalizedAdminEmail = normalizeEmail(adminEmail);
@@ -230,9 +241,35 @@ const updateBusiness = async (id, { name, category, status, adminEmail }) => {
 
       await sendVerifyEmail(updatedAdmin, id, updatedOrganization.slug);
       adminResult = { email: updatedAdmin.email };
+      adminEmailChanged = true;
     } else {
       adminResult = { email: adminUser.email };
     }
+  }
+
+  const changeParts = [];
+  if (name !== undefined && updates.name !== undefined) changeParts.push(`name → "${updates.name}"`);
+  if (category !== undefined && updates.category !== undefined) changeParts.push(`category → ${updates.category}`);
+  if (adminEmailChanged) changeParts.push(`admin email → ${adminResult.email}`);
+
+  if (status !== undefined) {
+    await logAction({
+      actorId,
+      actorName,
+      action: status === "suspended" ? "suspend" : "reactivate",
+      organizationId: id,
+      targetName: updatedOrganization.name,
+      details: changeParts.join("; ")
+    });
+  } else if (changeParts.length) {
+    await logAction({
+      actorId,
+      actorName,
+      action: "edit",
+      organizationId: id,
+      targetName: updatedOrganization.name,
+      details: changeParts.join("; ")
+    });
   }
 
   return {
