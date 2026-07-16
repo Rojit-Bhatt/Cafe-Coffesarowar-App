@@ -5,6 +5,7 @@ export interface PlatformUser {
   id: string;
   name: string;
   role: "customer" | "business_admin" | "platform";
+  platformRole: "owner" | "support";
 }
 
 interface PlatformAuthContextType {

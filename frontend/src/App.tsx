@@ -43,6 +43,7 @@ const PlatformSettings = lazy(() => import('./routes/platform/PlatformSettings')
 const PlatformContact = lazy(() => import('./routes/platform/PlatformContact'));
 const PlatformAuditLog = lazy(() => import('./routes/platform/PlatformAuditLog'));
 const PlatformAnalytics = lazy(() => import('./routes/platform/PlatformAnalytics'));
+const PlatformTeam = lazy(() => import('./routes/platform/PlatformTeam'));
 const AdminLogin = lazy(() => import('./routes/admin/AdminLogin'));
 const AdminOverview = lazy(() => import('./routes/admin/AdminOverview'));
 const GenerateQr = lazy(() => import('./routes/admin/GenerateQr'));
@@ -116,6 +117,7 @@ export default function App() {
             <Route path="contact" element={<PlatformContact />} />
             <Route path="audit-log" element={<PlatformAuditLog />} />
             <Route path="analytics" element={<PlatformAnalytics />} />
+            <Route path="team" element={<PlatformTeam />} />
           </Route>
 
           {/* Tenant-scoped experiences. */}

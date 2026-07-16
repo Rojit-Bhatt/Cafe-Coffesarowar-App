@@ -1,18 +1,31 @@
 import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Building2, PlusCircle, Phone, BarChart3, History } from "lucide-react";
+import { Building2, PlusCircle, Phone, BarChart3, History, Users } from "lucide-react";
 import { usePlatformAuth } from "../../context/PlatformAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { useAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../shared/AccountMenu";
 import { StampdLogo } from "../shared/StampdLogo";
 
-const NAV = [
+interface NavEntry {
+  to: string;
+  end?: boolean;
+  label: string;
+  Icon: typeof Building2;
+}
+
+const BASE_NAV: NavEntry[] = [
   { to: "", end: true, label: "Businesses", Icon: Building2 },
   { to: "analytics", label: "Analytics", Icon: BarChart3 },
-  { to: "onboard", label: "Onboard new", Icon: PlusCircle },
   { to: "audit-log", label: "Activity", Icon: History },
   { to: "contact", label: "Contact", Icon: Phone },
+];
+// Onboarding a business and managing the platform team are both
+// owner-only actions on the backend (isPlatformOwner) — hidden from a
+// support admin's nav rather than left visible only to fail on submit.
+const OWNER_ONLY_NAV: NavEntry[] = [
+  { to: "onboard", label: "Onboard new", Icon: PlusCircle },
+  { to: "team", label: "Team", Icon: Users },
 ];
 
 // Guarded desktop shell for the platform super-admin. Accent (--plat)
@@ -37,6 +50,8 @@ export function PlatformLayout() {
     );
   }
 
+  const nav = user.platformRole === "owner" ? [...BASE_NAV, ...OWNER_ONLY_NAV] : BASE_NAV;
+
   return (
     <div className="flex min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <aside className="sticky top-0 flex h-screen w-[250px] flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6">
@@ -49,7 +64,7 @@ export function PlatformLayout() {
         </div>
 
         <nav className="flex flex-col gap-0.5">
-          {NAV.map(({ to, end, label, Icon }) => (
+          {nav.map(({ to, end, label, Icon }) => (
             <NavLink
               key={to || "businesses"}
               to={to}
