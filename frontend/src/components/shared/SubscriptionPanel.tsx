@@ -8,8 +8,8 @@ interface SubscriptionSummary {
   planSlug: string;
   status: string;
   effectiveStatus: "trialing" | "active" | "grace" | "expired" | "canceled" | "none";
-  businessLimitAtPurchase: number;
-  businessCount: number;
+  outletLimitAtPurchase: number;
+  outletCount: number;
   currentPeriodEnd: string;
   daysUntilExpiry: number;
   isComped: boolean;
@@ -58,10 +58,10 @@ interface SubscriptionPanelProps {
   extraInvalidateKeyPrefixes?: string[];
 }
 
-// Shared between the owner's global dashboard (/owner/subscription) and the
-// tenant-scoped business console (/:slug/admin/subscription) — same data
-// shape either way (both funnel through subscriptionService.getSubscriptionSummary
-// server-side), just a different auth role/path.
+// The company owner's subscription surface. Kept as a shared component
+// because the same shape may need rendering read-only elsewhere later; it
+// always funnels through subscriptionService.getSubscriptionSummary
+// server-side.
 export function SubscriptionPanel({ queryKey, fetchPath, redeemPath, role, extraInvalidateKeyPrefixes }: SubscriptionPanelProps) {
   const qc = useQueryClient();
   const [code, setCode] = useState("");
@@ -125,12 +125,12 @@ export function SubscriptionPanel({ queryKey, fetchPath, redeemPath, role, extra
                 </span>
               </div>
               <p className="text-sm text-[var(--muted)]">
-                {sub.businessCount} of {sub.businessLimitAtPurchase} business{sub.businessLimitAtPurchase === 1 ? "" : "es"} used
+                {sub.outletCount} of {sub.outletLimitAtPurchase} outlet{sub.outletLimitAtPurchase === 1 ? "" : "s"} used
                 {sub.isComped ? " · comped" : ""}
               </p>
             </>
           ) : (
-            <p className="text-sm text-[var(--muted)]">No subscription found for this account.</p>
+            <p className="text-sm text-[var(--muted)]">No subscription found for this company.</p>
           )}
 
           {showContact && contact && (contact.phone || contact.email) && (

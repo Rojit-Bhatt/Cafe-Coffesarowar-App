@@ -1,25 +1,26 @@
 import { useEffect } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Building2, CreditCard } from "lucide-react";
-import { useOwnerAuth } from "../../context/OwnerAuthContext";
+import { Store, CreditCard, BarChart3 } from "lucide-react";
+import { useCompanyAuth } from "../../context/CompanyAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { StampdLogo } from "../shared/StampdLogo";
 import { AccountMenu } from "../shared/AccountMenu";
 
 const NAV = [
-  { to: "", end: true, label: "Businesses", Icon: Building2 },
+  { to: "", end: true, label: "Outlets", Icon: Store },
+  { to: "reports", label: "Reports", Icon: BarChart3 },
   { to: "subscription", label: "Subscription", Icon: CreditCard },
 ];
 
-// Guarded desktop shell for a business owner — the "one login, many
-// businesses" console. Uses the shared --brand accent (this is business-side,
-// not the platform console, which uses --plat).
-export function OwnerLayout() {
-  const { account, logout } = useOwnerAuth();
+// Guarded shell for a company owner — the "one login, every outlet" console.
+// Uses the shared --brand accent (this is business-side; the platform console
+// is the one that uses --plat).
+export function CompanyLayout() {
+  const { account, company, logout } = useCompanyAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!account) navigate("/owner-login");
+    if (!account) navigate("/admin-login");
   }, [account, navigate]);
 
   if (!account) {
@@ -35,16 +36,18 @@ export function OwnerLayout() {
       <aside className="sticky top-0 flex h-screen w-[250px] flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6">
         <div className="mb-6 flex items-center gap-2.5 px-2">
           <StampdLogo size={36} tile />
-          <div>
-            <div className="font-display text-[16px] font-bold leading-none">{PLATFORM_NAME}</div>
-            <div className="text-[11px] text-[var(--soft)]">Business owner</div>
+          <div className="min-w-0">
+            <div className="truncate font-display text-[16px] font-bold leading-none">
+              {company?.name || PLATFORM_NAME}
+            </div>
+            <div className="text-[11px] text-[var(--soft)]">Company console</div>
           </div>
         </div>
 
         <nav className="flex flex-col gap-0.5">
           {NAV.map(({ to, end, label, Icon }) => (
             <NavLink
-              key={to || "businesses"}
+              key={to || "outlets"}
               to={to}
               end={end}
               className={({ isActive }) =>
@@ -65,11 +68,9 @@ export function OwnerLayout() {
           <AccountMenu
             initial={account.name.charAt(0).toUpperCase()}
             name={account.name}
-            settingsPath="/owner"
-            onLogout={() => {
-              logout();
-              navigate("/owner-login");
-            }}
+            email={account.email}
+            settingsPath="/company"
+            onLogout={logout}
             accent="var(--brand)"
             dropUp
           />
@@ -82,4 +83,4 @@ export function OwnerLayout() {
     </div>
   );
 }
-export default OwnerLayout;
+export default CompanyLayout;

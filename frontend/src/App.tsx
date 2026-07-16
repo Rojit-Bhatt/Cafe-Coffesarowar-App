@@ -5,14 +5,14 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { CustomerAuthProvider } from './context/CustomerAuthContext';
 import { AdminAuthProvider } from './context/AdminAuthContext';
 import { PlatformAuthProvider } from './context/PlatformAuthContext';
-import { OwnerAuthProvider } from './context/OwnerAuthContext';
+import { CompanyAuthProvider } from './context/CompanyAuthContext';
 import { TenantProvider } from './context/TenantContext';
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AdminGuard } from './components/admin/AdminGuard';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { PlatformLayout } from './components/platform/PlatformLayout';
-import { OwnerLayout } from './components/owner/OwnerLayout';
+import { CompanyLayout } from './components/company/CompanyLayout';
 import { CustomerLayout } from './components/customer/CustomerLayout';
 import { GlobalCustomerLayout } from './components/customer/GlobalCustomerLayout';
 import { TenantSessionSync } from './components/customer/TenantSessionSync';
@@ -21,7 +21,6 @@ const queryClient = new QueryClient();
 
 // Lazy load pages for route-based code splitting
 const BusinessLanding = lazy(() => import('./routes/BusinessLanding'));
-const FindBusiness = lazy(() => import('./routes/FindBusiness'));
 const GlobalCustomerLogin = lazy(() => import('./routes/GlobalCustomerLogin'));
 const GlobalCustomerRegister = lazy(() => import('./routes/GlobalCustomerRegister'));
 const Explore = lazy(() => import('./routes/Explore'));
@@ -48,14 +47,10 @@ const PlatformAnalytics = lazy(() => import('./routes/platform/PlatformAnalytics
 const PlatformTeam = lazy(() => import('./routes/platform/PlatformTeam'));
 const Plans = lazy(() => import('./routes/platform/Plans'));
 const SubscriptionKeys = lazy(() => import('./routes/platform/SubscriptionKeys'));
-const OwnerLogin = lazy(() => import('./routes/owner/OwnerLogin'));
-const OwnerRegister = lazy(() => import('./routes/owner/OwnerRegister'));
-const OwnerVerifyEmail = lazy(() => import('./routes/owner/OwnerVerifyEmail'));
-const OwnerForgotPassword = lazy(() => import('./routes/owner/OwnerForgotPassword'));
-const OwnerResetPassword = lazy(() => import('./routes/owner/OwnerResetPassword'));
-const OwnerDashboard = lazy(() => import('./routes/owner/OwnerDashboard'));
-const OwnerSubscription = lazy(() => import('./routes/owner/OwnerSubscription'));
-const AdminLogin = lazy(() => import('./routes/admin/AdminLogin'));
+const CompanyDashboard = lazy(() => import('./routes/company/CompanyDashboard'));
+const CompanySubscription = lazy(() => import('./routes/company/CompanySubscription'));
+const CompanyReports = lazy(() => import('./routes/company/CompanyReports'));
+const AdminLogin = lazy(() => import('./routes/AdminLogin'));
 const AdminOverview = lazy(() => import('./routes/admin/AdminOverview'));
 const GenerateQr = lazy(() => import('./routes/admin/GenerateQr'));
 const RedeemVoucher = lazy(() => import('./routes/admin/RedeemVoucher'));
@@ -103,11 +98,7 @@ export default function App() {
           {/* Platform (SaaS owner) — unscoped, maroon accent. */}
           <Route path="/" element={<PlatformLanding />} />
           <Route path="/platform/login" element={<PlatformLogin />} />
-          {/* Slug-less "which business?" lookup — resolves a typed
-              business name to its /:slug before handing off to the
-              tenant's admin login. Customer login is genuinely
-              global instead (see below) — no business lookup step. */}
-          <Route path="/business-login" element={<FindBusiness intent="admin" />} />
+          <Route path="/business-login" element={<Navigate to="/admin-login" replace />} />
           {/* Global customer identity: one CustomerAccount works at
               every tenant, so login/register/the /explore home are
               all slug-less — no tenant context until a business is
@@ -134,17 +125,11 @@ export default function App() {
             <Route path="subscription-keys" element={<SubscriptionKeys />} />
           </Route>
 
-          {/* Business owner — global identity, one login manages every
-              business (Organization) that owner runs. Slug-less, same
-              pattern as the global customer identity's login/register. */}
-          <Route path="/owner-login" element={<OwnerLogin />} />
-          <Route path="/owner-register" element={<OwnerRegister />} />
-          <Route path="/owner-verify-email" element={<OwnerVerifyEmail />} />
-          <Route path="/owner-forgot-password" element={<OwnerForgotPassword />} />
-          <Route path="/owner-reset-password" element={<OwnerResetPassword />} />
-          <Route path="/owner" element={<OwnerLayout />}>
-            <Route index element={<OwnerDashboard />} />
-            <Route path="subscription" element={<OwnerSubscription />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
+          <Route path="/company" element={<CompanyLayout />}>
+            <Route index element={<CompanyDashboard />} />
+            <Route path="reports" element={<CompanyReports />} />
+            <Route path="subscription" element={<CompanySubscription />} />
           </Route>
 
           {/* Tenant-scoped experiences. */}
@@ -210,7 +195,7 @@ export default function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <PlatformAuthProvider>
-          <OwnerAuthProvider>
+          <CompanyAuthProvider>
           <AdminAuthProvider>
             <CustomerAuthProvider>
               {/* Single global provider — Google OAuth is one client id for
@@ -245,7 +230,7 @@ export default function App() {
               />
             </CustomerAuthProvider>
           </AdminAuthProvider>
-          </OwnerAuthProvider>
+          </CompanyAuthProvider>
         </PlatformAuthProvider>
       </QueryClientProvider>
     </ErrorBoundary>
