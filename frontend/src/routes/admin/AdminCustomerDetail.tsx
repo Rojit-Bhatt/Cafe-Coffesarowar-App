@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Phone, MapPin, Ticket } from "lucide-react";
 import { apiRequest } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface AdminCustomer {
@@ -36,9 +37,11 @@ export default function AdminCustomerDetail() {
   const { slug, id } = useParams();
   const { data: settings } = useAdminSettings();
   const required = settings?.program?.stampsRequired ?? 5;
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
 
   const { data: customers = [], isLoading } = useQuery<AdminCustomer[]>({
-    queryKey: ["adminCustomers"],
+    queryKey: ["adminCustomers", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; data: AdminCustomer[] }>(
         "/api/admin/customers",

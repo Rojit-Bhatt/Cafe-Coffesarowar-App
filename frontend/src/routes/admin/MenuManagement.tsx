@@ -4,6 +4,7 @@ import { Trash2, Plus, Download, UploadCloud, Search } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiRequest, getTenantSlug } from "../../lib/api";
 import { useAdminSettings, useUpdateAdminSettings } from "../../hooks/useAdminSettings";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { MenuImportPreviewModal, type MenuImportPreview } from "../../components/admin/MenuImportPreviewModal";
@@ -23,8 +24,10 @@ interface MenuItem {
 const itemId = (i: MenuItem) => i.id || (i._id as string);
 
 function useMenu() {
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
   return useQuery<MenuItem[]>({
-    queryKey: ["adminMenu"],
+    queryKey: ["adminMenu", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; items: MenuItem[] }>("/api/admin/menu", {
         role: "admin",

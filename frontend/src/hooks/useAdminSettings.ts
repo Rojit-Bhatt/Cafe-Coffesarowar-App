@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../lib/api";
+import { useAdminAuth } from "../context/AdminAuthContext";
 
 // Mirrors backend/config/platform.js's BUSINESS_CATEGORIES.
 export const BUSINESS_CATEGORIES = ["cafe", "restaurant", "bakery", "salon", "gym", "retail", "other"] as const;
@@ -58,8 +59,10 @@ export interface AdminSettingsPatch {
 }
 
 export function useAdminSettings() {
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
   return useQuery<AdminSettings>({
-    queryKey: ["adminSettings"],
+    queryKey: ["adminSettings", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; settings: AdminSettings }>(
         "/api/admin/settings",
@@ -73,6 +76,8 @@ export function useAdminSettings() {
 
 export function useUpdateAdminSettings() {
   const qc = useQueryClient();
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
   return useMutation({
     mutationFn: async (patch: AdminSettingsPatch) => {
       const res = await apiRequest<{ success: boolean; settings: AdminSettings }>(
@@ -82,7 +87,7 @@ export function useUpdateAdminSettings() {
       return res.settings;
     },
     onSuccess: (settings) => {
-      qc.setQueryData(["adminSettings"], settings);
+      qc.setQueryData(["adminSettings", orgId], settings);
     },
   });
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Trash2, Plus, Pencil, X, Check } from "lucide-react";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../lib/api";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 
@@ -22,8 +23,10 @@ const eventId = (e: EventItem) => e.id || (e._id as string);
 const EMPTY_DRAFT = { title: "", date: "", time: "", location: "", description: "", imageUrl: "" };
 
 function useEvents() {
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
   return useQuery<EventItem[]>({
-    queryKey: ["adminEvents"],
+    queryKey: ["adminEvents", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; events: EventItem[] }>("/api/admin/events", {
         role: "admin",

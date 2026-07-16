@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { apiRequest, getTenantSlug } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 
 interface AdminCustomer {
   id: string;
@@ -71,10 +72,12 @@ function lastVisit(iso: string | null): string {
 export default function AdminOverview() {
   const { slug } = useParams();
   const { data: settings } = useAdminSettings();
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
   const [query, setQuery] = useState("");
 
   const { data: customers = [] } = useQuery<AdminCustomer[]>({
-    queryKey: ["adminCustomers"],
+    queryKey: ["adminCustomers", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; data: AdminCustomer[] }>(
         "/api/admin/customers",
@@ -85,7 +88,7 @@ export default function AdminOverview() {
   });
 
   const { data: scans = [] } = useQuery<Scan[]>({
-    queryKey: ["recentScans"],
+    queryKey: ["recentScans", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean; data: Scan[] }>("/api/admin/recent-scans", {
         role: "admin",
@@ -96,7 +99,7 @@ export default function AdminOverview() {
   });
 
   const { data: dashboardStats } = useQuery<DashboardStats>({
-    queryKey: ["adminDashboardStats"],
+    queryKey: ["adminDashboardStats", orgId],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean } & DashboardStats>("/api/admin/dashboard-stats", {
         role: "admin",

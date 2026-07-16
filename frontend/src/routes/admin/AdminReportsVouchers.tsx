@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Ticket, CheckCircle2, Clock, Percent } from "lucide-react";
 import { apiRequest, getTenantSlug } from "../../lib/api";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface VoucherRow {
@@ -33,9 +34,11 @@ export default function AdminReportsVouchers() {
   const initial = defaultRange();
   const [startDate, setStartDate] = useState(initial.start);
   const [endDate, setEndDate] = useState(initial.end);
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
 
   const { data: stats, isLoading } = useQuery<VoucherPerformanceStats>({
-    queryKey: ["adminReportsVouchers", startDate, endDate],
+    queryKey: ["adminReportsVouchers", orgId, startDate, endDate],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean } & VoucherPerformanceStats>(
         `/api/admin/reports/vouchers?startDate=${startDate}&endDate=${endDate}`,

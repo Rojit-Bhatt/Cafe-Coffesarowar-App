@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, UserPlus, Stamp, Ticket, CheckCircle2, Wallet } from "lucide-react";
 import { apiRequest, getTenantSlug } from "../../lib/api";
+import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface SummaryStats {
@@ -24,9 +25,11 @@ export default function AdminReportsSummary() {
   const initial = defaultRange();
   const [startDate, setStartDate] = useState(initial.start);
   const [endDate, setEndDate] = useState(initial.end);
+  const { user } = useAdminAuth();
+  const orgId = user?.organizationId ?? null;
 
   const { data: stats, isLoading } = useQuery<SummaryStats>({
-    queryKey: ["adminReportsSummary", startDate, endDate],
+    queryKey: ["adminReportsSummary", orgId, startDate, endDate],
     queryFn: async () => {
       const res = await apiRequest<{ success: boolean } & SummaryStats>(
         `/api/admin/reports/summary?startDate=${startDate}&endDate=${endDate}`,
