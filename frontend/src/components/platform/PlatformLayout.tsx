@@ -5,6 +5,7 @@ import { usePlatformAuth } from "../../context/PlatformAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { useAccount } from "../../hooks/useAccount";
 import { AccountMenu } from "../shared/AccountMenu";
+import { StampdLogo } from "../shared/StampdLogo";
 
 const NAV = [
   { to: "", end: true, label: "Businesses", Icon: Building2 },
@@ -38,12 +39,7 @@ export function PlatformLayout() {
     <div className="flex min-h-screen bg-[var(--bg)] text-[var(--ink)]">
       <aside className="sticky top-0 flex h-screen w-[250px] flex-shrink-0 flex-col border-r border-[var(--line)] bg-[var(--surface)] px-4 py-6">
         <div className="mb-6 flex items-center gap-2.5 px-2">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl font-display text-sm font-bold text-white"
-            style={{ background: "var(--plat)" }}
-          >
-            {PLATFORM_NAME.charAt(0)}
-          </div>
+          <StampdLogo size={36} tile />
           <div>
             <div className="font-display text-[16px] font-bold leading-none">{PLATFORM_NAME}</div>
             <div className="text-[11px] text-[var(--soft)]">Platform console</div>

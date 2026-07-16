@@ -7,8 +7,8 @@ import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
 import toast from "react-hot-toast";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
-import { PLATFORM_NAME } from "../lib/platform";
 import { PhoneStepModal } from "../components/customer/PhoneStepModal";
+import { StampdLogo } from "../components/shared/StampdLogo";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -65,12 +65,7 @@ export default function GlobalCustomerLogin() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-[var(--bg)] px-4 py-10">
       <div className="w-full max-w-sm">
-        <div
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-[17px] font-display text-[22px] font-extrabold text-white"
-          style={{ background: "var(--brand)" }}
-        >
-          {PLATFORM_NAME.charAt(0)}
-        </div>
+        <StampdLogo size={56} tile className="mb-4" />
 
         <h1 className="font-display text-[25px] font-extrabold text-[var(--ink)]">Welcome back</h1>
         <p className="mb-6 mt-1 text-sm text-[var(--muted)]">

@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { apiRequest } from "../lib/api";
 import { PLATFORM_NAME } from "../lib/platform";
+import { StampdLogo } from "../components/shared/StampdLogo";
 
 const registerSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters."),
@@ -156,12 +157,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-[var(--bg)] px-4 py-10">
       <div className="w-full max-w-sm">
-        <div
-          className="mb-4 flex h-14 w-14 items-center justify-center rounded-[17px] font-display text-[22px] font-extrabold text-white"
-          style={{ background: "var(--brand)" }}
-        >
-          {PLATFORM_NAME.charAt(0)}
-        </div>
+        <StampdLogo size={56} tile className="mb-4" />
         {children}
       </div>
     </div>

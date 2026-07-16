@@ -8,6 +8,7 @@ import { useAccount } from "../../hooks/useAccount";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { BottomNav } from "./BottomNav";
 import { ScannerModal } from "./ScannerModal";
+import { StampdLogo } from "../shared/StampdLogo";
 
 // The authenticated customer app shell: a phone-framed viewport with a shared
 // scanner modal and bottom navigation. Wraps the dashboard and wallet routes.
@@ -55,9 +56,12 @@ export function CustomerLayout() {
         />
 
         <header className="flex flex-shrink-0 items-center justify-between px-5 pt-5">
-          <span className="font-display text-xl font-bold" style={{ color: "var(--brand)" }}>
-            {PLATFORM_NAME}
-          </span>
+          <div className="flex items-center gap-2">
+            <StampdLogo size={22} />
+            <span className="font-display text-xl font-bold" style={{ color: "var(--brand)" }}>
+              {PLATFORM_NAME}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setScanOpen(true)}

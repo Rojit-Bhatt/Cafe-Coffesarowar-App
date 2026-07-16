@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { PLATFORM_NAME } from "../../lib/platform";
 import { usePlatformContact } from "../../hooks/usePlatformContact";
+import { StampdLogo } from "../../components/shared/StampdLogo";
 
 const STEPS = [
   { n: "1", t: "We set up your card", d: "Pick your reward and how many stamps it takes. Live in minutes — no app store needed." },
@@ -64,7 +65,8 @@ export default function PlatformLanding() {
       {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[var(--line)] bg-[var(--bg)]/85 backdrop-blur">
         <div className="mx-auto flex max-w-[1140px] items-center gap-8 px-6 py-4">
-          <span className="font-display text-xl font-bold tracking-tight" style={{ color: "var(--plat)" }}>
+          <span className="flex items-center gap-2 font-display text-xl font-bold tracking-tight" style={{ color: "var(--plat)" }}>
+            <StampdLogo size={22} />
             {PLATFORM_NAME}
           </span>
           <nav className="hidden items-center gap-7 md:flex">
@@ -338,7 +340,8 @@ export default function PlatformLanding() {
         <div className="mx-auto max-w-[1140px]">
           <div className="mb-10 grid grid-cols-2 gap-8 md:grid-cols-4">
             <div className="col-span-2 md:col-span-1">
-              <div className="mb-3 font-display text-xl font-bold" style={{ color: "var(--plat)" }}>
+              <div className="mb-3 flex items-center gap-2 font-display text-xl font-bold" style={{ color: "var(--plat)" }}>
+                <StampdLogo size={22} />
                 {PLATFORM_NAME}
               </div>
               <p className="max-w-xs text-sm text-[var(--muted)]">

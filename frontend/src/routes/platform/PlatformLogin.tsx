@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { usePlatformAuth } from "../../context/PlatformAuthContext";
 import { PLATFORM_NAME } from "../../lib/platform";
+import { StampdLogo } from "../../components/shared/StampdLogo";
 
 const schema = z.object({
   email: z.string().trim().email("Please enter a valid email address."),
@@ -49,12 +50,7 @@ export default function PlatformLogin() {
     <div className="flex min-h-screen w-full items-center justify-center bg-[var(--bg)] px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div
-            className="mx-auto mb-3.5 flex h-11 w-11 items-center justify-center rounded-[13px] font-display text-xl font-extrabold text-white"
-            style={{ background: "var(--plat)" }}
-          >
-            {PLATFORM_NAME.charAt(0)}
-          </div>
+          <StampdLogo size={44} tile className="mx-auto mb-3.5" />
           <h1 className="font-display text-2xl font-extrabold text-[var(--ink)]">Platform admin</h1>
           <p className="mt-1 text-sm text-[var(--muted)]">Sign in to your control panel</p>
         </div>

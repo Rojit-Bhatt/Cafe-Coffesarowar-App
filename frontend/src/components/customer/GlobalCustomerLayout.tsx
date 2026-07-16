@@ -7,6 +7,7 @@ import { PLATFORM_NAME } from "../../lib/platform";
 import { ConfirmDialog } from "../shared/ConfirmDialog";
 import { GlobalScannerModal } from "./GlobalScannerModal";
 import { useMyTenants } from "../../hooks/useMyTenants";
+import { StampdLogo } from "../shared/StampdLogo";
 
 // The global (cross-tenant) customer app shell for /explore + /explore/mine —
 // parallel to CustomerLayout.tsx but with no active TenantProvider/tenant
@@ -69,9 +70,12 @@ export function GlobalCustomerLayout() {
         />
 
         <header className="flex flex-shrink-0 items-center justify-between px-5 pt-5">
-          <span className="font-display text-xl font-bold" style={{ color: "var(--brand)" }}>
-            {PLATFORM_NAME}
-          </span>
+          <div className="flex items-center gap-2">
+            <StampdLogo size={22} />
+            <span className="font-display text-xl font-bold" style={{ color: "var(--brand)" }}>
+              {PLATFORM_NAME}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setScanOpen(true)}
