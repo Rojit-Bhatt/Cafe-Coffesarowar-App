@@ -1,9 +1,13 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { apiRequest } from "../../lib/api";
 import { Skeleton } from "../../components/ui/skeleton";
 import type { BusinessCategory } from "../../hooks/useAdminSettings";
 import { usePlatformAuth } from "../../context/PlatformAuthContext";
+
+type StatusFilter = "all" | "active" | "suspended";
 
 export interface Business {
   id: string;
@@ -35,6 +39,8 @@ export default function Businesses() {
   const { user } = usePlatformAuth();
   const isOwner = user?.platformRole === "owner";
   const { data: businesses = [], isLoading } = useBusinesses();
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
 
   const active = businesses.filter((b) => b.status === "active").length;
   const totalCustomers = businesses.reduce((n, b) => n + b.customersCount, 0);
@@ -46,6 +52,15 @@ export default function Businesses() {
     { label: "Total customers", val: totalCustomers },
     { label: "Stamps issued", val: totalStamps },
   ];
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return businesses.filter((b) => {
+      if (status !== "all" && b.status !== status) return false;
+      if (q && !b.name.toLowerCase().includes(q) && !b.slug.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [businesses, query, status]);
 
   return (
     <div>
@@ -80,6 +95,34 @@ export default function Businesses() {
         ))}
       </div>
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--soft)]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or slug…"
+            className="w-full rounded-full border border-[var(--line)] bg-[var(--surface)] py-2.5 pl-10 pr-4 text-sm focus:border-[var(--plat)] focus:outline-none"
+          />
+        </div>
+        <div className="flex gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] p-1">
+          {(["all", "active", "suspended"] as StatusFilter[]).map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className="rounded-full px-3.5 py-1.5 text-[13px] font-bold capitalize transition-colors"
+              style={
+                status === s
+                  ? { background: "var(--plat)", color: "white" }
+                  : { color: "var(--muted)" }
+              }
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-b border-[var(--line)] px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
           <span>Business</span>
@@ -109,8 +152,12 @@ export default function Businesses() {
           <div className="px-5 py-10 text-center text-sm text-[var(--muted)]">
             No businesses yet. Onboard your first.
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="px-5 py-10 text-center text-sm text-[var(--muted)]">
+            No businesses match your search.
+          </div>
         ) : (
-          businesses.map((b) => (
+          filtered.map((b) => (
             <button
               key={b.id}
               onClick={() => navigate(`/platform/business/${b.id}`)}
