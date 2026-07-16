@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { apiRequest } from "../../lib/api";
 import { Skeleton } from "../../components/ui/skeleton";
 import type { BusinessCategory } from "../../hooks/useAdminSettings";
+import { usePlatformAuth } from "../../context/PlatformAuthContext";
 
 export interface Business {
   id: string;
@@ -31,6 +32,8 @@ export function useBusinesses() {
 
 export default function Businesses() {
   const navigate = useNavigate();
+  const { user } = usePlatformAuth();
+  const isOwner = user?.platformRole === "owner";
   const { data: businesses = [], isLoading } = useBusinesses();
 
   const active = businesses.filter((b) => b.status === "active").length;
@@ -53,13 +56,15 @@ export default function Businesses() {
             {isLoading ? <Skeleton className="inline-block h-4 w-36 align-middle" /> : `${businesses.length} onboarded · ${active} active`}
           </div>
         </div>
-        <Link
-          to="onboard"
-          className="stamp-interactive rounded-full px-5 py-3 text-[15px] font-bold text-white"
-          style={{ background: "var(--plat)" }}
-        >
-          + Onboard new business
-        </Link>
+        {isOwner && (
+          <Link
+            to="onboard"
+            className="stamp-interactive rounded-full px-5 py-3 text-[15px] font-bold text-white"
+            style={{ background: "var(--plat)" }}
+          >
+            + Onboard new business
+          </Link>
+        )}
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">

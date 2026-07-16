@@ -7,10 +7,13 @@ import type { Business } from "./Businesses";
 import { CATEGORY_LABELS, BUSINESS_CATEGORIES, type BusinessCategory } from "../../hooks/useAdminSettings";
 import { Skeleton } from "../../components/ui/skeleton";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { usePlatformAuth } from "../../context/PlatformAuthContext";
 
 export default function BusinessDetail() {
   const { id = "" } = useParams();
   const qc = useQueryClient();
+  const { user } = usePlatformAuth();
+  const isOwner = user?.platformRole === "owner";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [form, setForm] = useState<{ name: string; category: BusinessCategory; adminEmail: string } | null>(null);
 
@@ -130,17 +133,19 @@ export default function BusinessDetail() {
           </span>
         </div>
         <div className="flex gap-2.5">
-          <button
-            onClick={() => setConfirmOpen(true)}
-            disabled={setStatus.isPending}
-            className="rounded-[12px] border bg-white px-4 py-2.5 font-bold disabled:opacity-50"
-            style={{
-              borderColor: suspended ? "var(--ok-soft)" : "var(--warn-soft)",
-              color: suspended ? "var(--ok)" : "var(--warn)",
-            }}
-          >
-            {suspended ? "Reactivate" : "Suspend"}
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => setConfirmOpen(true)}
+              disabled={setStatus.isPending}
+              className="rounded-[12px] border bg-white px-4 py-2.5 font-bold disabled:opacity-50"
+              style={{
+                borderColor: suspended ? "var(--ok-soft)" : "var(--warn-soft)",
+                color: suspended ? "var(--ok)" : "var(--warn)",
+              }}
+            >
+              {suspended ? "Reactivate" : "Suspend"}
+            </button>
+          )}
           <a
             href={`/${business.slug}`}
             target="_blank"
@@ -162,7 +167,7 @@ export default function BusinessDetail() {
         ))}
       </div>
 
-      {form && (
+      {form && isOwner && (
         <div className="mt-5 shadow-ambient rounded-3xl bg-[var(--surface)] p-6">
           <h3 className="mb-4 font-display text-lg font-bold text-[var(--ink)]">Edit details</h3>
           <div className="flex flex-col gap-4">
@@ -208,6 +213,12 @@ export default function BusinessDetail() {
               {update.isPending ? "Saving…" : "Save changes"}
             </button>
           </div>
+        </div>
+      )}
+
+      {!isOwner && (
+        <div className="mt-5 rounded-[16px] border border-[var(--line)] bg-[var(--surface)] px-5 py-4 text-sm text-[var(--muted)]">
+          Your support role can view this business but can't edit details or change its status.
         </div>
       )}
 

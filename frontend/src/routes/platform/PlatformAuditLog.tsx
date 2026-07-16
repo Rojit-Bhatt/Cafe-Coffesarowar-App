@@ -5,7 +5,7 @@ import { Skeleton } from "../../components/ui/skeleton";
 interface AuditEntry {
   id: string;
   actorName: string;
-  action: "onboard" | "edit" | "suspend" | "reactivate";
+  action: "onboard" | "edit" | "suspend" | "reactivate" | "invite_admin" | "remove_admin";
   targetName: string;
   details: string;
   createdAt: string;
@@ -16,6 +16,8 @@ const ACTION_LABELS: Record<AuditEntry["action"], string> = {
   edit: "Edited",
   suspend: "Suspended",
   reactivate: "Reactivated",
+  invite_admin: "Admin invited",
+  remove_admin: "Admin removed",
 };
 
 const ACTION_COLORS: Record<AuditEntry["action"], { bg: string; fg: string }> = {
@@ -23,6 +25,8 @@ const ACTION_COLORS: Record<AuditEntry["action"], { bg: string; fg: string }> = 
   edit: { bg: "var(--surface-container-high)", fg: "var(--soft)" },
   suspend: { bg: "var(--warn-soft)", fg: "var(--warn)" },
   reactivate: { bg: "var(--ok-soft)", fg: "var(--ok)" },
+  invite_admin: { bg: "var(--plat-soft)", fg: "var(--plat)" },
+  remove_admin: { bg: "var(--warn-soft)", fg: "var(--warn)" },
 };
 
 function formatWhen(iso: string): string {
@@ -49,7 +53,7 @@ export default function PlatformAuditLog() {
   return (
     <div>
       <h1 className="font-display text-[30px] font-extrabold text-[var(--ink)]">Activity log</h1>
-      <p className="mb-6 text-[var(--muted)]">Every onboard, edit, suspend, and reactivate action, most recent first.</p>
+      <p className="mb-6 text-[var(--muted)]">Every business and team action, most recent first.</p>
 
       <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
         <div className="grid grid-cols-[140px_110px_1fr_1.5fr] border-b border-[var(--line)] px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
