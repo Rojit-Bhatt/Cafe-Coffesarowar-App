@@ -62,14 +62,14 @@ export function AuthView({ mode }: { mode: Mode }) {
 
   const onLoginSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
-    const toastId = toast.loading("Signing in…");
+    const toastId = toast.loading("Signing you in…");
     try {
       await login(data.email, data.password);
       await ensureTenantSession(slug, tenant?.id ?? null);
-      toast.success("Welcome back!", { id: toastId });
+      toast.success("Good to see you again!", { id: toastId });
       navigate(`/${slug}/dashboard`);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to sign in.", { id: toastId });
+      toast.error((err as Error).message || "Couldn't sign you in — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -77,14 +77,14 @@ export function AuthView({ mode }: { mode: Mode }) {
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
     setIsSubmitting(true);
-    const toastId = toast.loading("Creating your account…");
+    const toastId = toast.loading("Setting up your account…");
     try {
       const local = data.phone.replace(/\D/g, "").replace(/^0+/, "");
       await registerUser(data.name, data.email, data.password, `+977${local}`);
-      toast.success("Account created! Check your email.", { id: toastId });
+      toast.success("You're in! Check your email to verify.", { id: toastId });
       setRegisteredEmail(data.email);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to register.", { id: toastId });
+      toast.error((err as Error).message || "Couldn't create your account — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -98,7 +98,7 @@ export function AuthView({ mode }: { mode: Mode }) {
       if (needsPhone) setShowPhoneStep(true);
       else navigate(`/${slug}/dashboard`);
     } catch (err) {
-      toast.error((err as Error).message || "Google sign-in failed.");
+      toast.error((err as Error).message || "Google sign-in didn't work — try again.");
     }
   };
 
@@ -118,9 +118,9 @@ export function AuthView({ mode }: { mode: Mode }) {
                 method: "POST",
                 body: { email: registeredEmail },
               });
-              toast.success("Verification email resent.");
+              toast.success("Verification email sent — check your inbox.");
             } catch {
-              toast.error("Could not resend. Try again.");
+              toast.error("Couldn't resend that — try again in a bit.");
             }
           }}
           className="w-full rounded-[15px] py-4 text-[15px] font-bold text-white"
@@ -243,7 +243,7 @@ export function AuthView({ mode }: { mode: Mode }) {
             <span className="h-px flex-1 bg-[var(--line)]" /> or <span className="h-px flex-1 bg-[var(--line)]" />
           </div>
           <div className="flex justify-center">
-            <GoogleLogin onSuccess={(cred) => onGoogle(cred.credential)} onError={() => toast.error("Google sign-in failed.")} />
+            <GoogleLogin onSuccess={(cred) => onGoogle(cred.credential)} onError={() => toast.error("Google sign-in didn't work — try again.")} />
           </div>
         </div>
       )}

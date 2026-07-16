@@ -75,9 +75,9 @@ export default function AdminContact() {
     if (hasErrors) return;
     try {
       await update.mutateAsync({ contact });
-      toast.success("Contact info saved");
+      toast.success("Contact info saved!");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save.");
+      toast.error((err as Error).message || "Couldn't save that — try again.");
     }
   };
 

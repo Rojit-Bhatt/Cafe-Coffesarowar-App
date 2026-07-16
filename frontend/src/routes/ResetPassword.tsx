@@ -14,21 +14,21 @@ export default function ResetPassword() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters.");
+      toast.error("Needs to be at least 6 characters.");
       return;
     }
     if (password !== confirm) {
-      toast.error("Passwords do not match.");
+      toast.error("Those passwords don't match.");
       return;
     }
     const token = params.get("token");
     setBusy(true);
     try {
       await apiRequest("/api/auth/reset-password", { method: "POST", body: { token, password } });
-      toast.success("Password updated. Please sign in.");
+      toast.success("Password updated! Go ahead and sign in.");
       navigate(`/${slug}/login`);
     } catch (err) {
-      toast.error((err as Error).message || "Reset failed.");
+      toast.error((err as Error).message || "Couldn't reset that — try again.");
     } finally {
       setBusy(false);
     }

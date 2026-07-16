@@ -41,13 +41,13 @@ export default function AdminLogin() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
-    const toastId = toast.loading("Signing in…");
+    const toastId = toast.loading("Signing you in…");
     try {
       await login(data.email, data.password);
-      toast.success("Welcome to your console!", { id: toastId });
+      toast.success("Welcome back to the console!", { id: toastId });
       navigate(consolePath);
     } catch (err: any) {
-      toast.error(err.message || "Failed to sign in.", { id: toastId });
+      toast.error(err.message || "Couldn't sign you in — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -111,7 +111,7 @@ export default function AdminLogin() {
               className="mt-2 w-full rounded-[13px] py-4 text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: "var(--brand)" }}
             >
-              {isSubmitting ? "Signing in…" : "Sign in"}
+              {isSubmitting ? "Signing you in…" : "Sign in"}
             </button>
           </form>
         </div>

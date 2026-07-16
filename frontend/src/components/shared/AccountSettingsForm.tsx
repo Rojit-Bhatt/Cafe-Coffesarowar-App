@@ -54,9 +54,9 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
     if (!name.trim()) return;
     try {
       await updateProfile.mutateAsync(name);
-      toast.success("Name updated");
+      toast.success("Name updated!");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to update name.");
+      toast.error((err as Error).message || "Couldn't update your name — try again.");
     }
   };
 
@@ -64,11 +64,11 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
     if (!currentPassword || !newPassword) return;
     try {
       await changePassword.mutateAsync({ currentPassword, newPassword });
-      toast.success("Password updated");
+      toast.success("Password updated!");
       setCurrentPassword("");
       setNewPassword("");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to update password.");
+      toast.error((err as Error).message || "Couldn't update your password — try again.");
     }
   };
 
@@ -76,9 +76,9 @@ export function AccountSettingsForm({ role, onLogout }: AccountSettingsFormProps
     setResending(true);
     try {
       await apiRequest("/api/auth/resend-verification", { method: "POST", body: { email: account.email } });
-      toast.success("Verification email resent.");
+      toast.success("Verification email sent — check your inbox.");
     } catch {
-      toast.error("Could not resend. Try again.");
+      toast.error("Couldn't resend that — try again in a bit.");
     } finally {
       setResending(false);
     }

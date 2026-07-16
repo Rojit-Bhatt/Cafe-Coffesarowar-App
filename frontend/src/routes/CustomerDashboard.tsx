@@ -88,9 +88,9 @@ export default function CustomerDashboard() {
                     method: "POST",
                     body: { email: account?.email },
                   });
-                  toast.success("Verification email resent.");
+                  toast.success("Verification email sent — check your inbox.");
                 } catch {
-                  toast.error("Could not resend. Try again.");
+                  toast.error("Couldn't resend that — try again in a bit.");
                 }
               }}
               className="font-bold underline"

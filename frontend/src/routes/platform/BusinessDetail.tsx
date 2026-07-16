@@ -29,9 +29,9 @@ export default function BusinessDetail() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["platformBusiness", id] });
       qc.invalidateQueries({ queryKey: ["platformBusinesses"] });
-      toast.success("Status updated");
+      toast.success("Status updated!");
     },
-    onError: (e) => toast.error((e as Error).message || "Failed to update."),
+    onError: (e) => toast.error((e as Error).message || "Couldn't update that — try again."),
   });
 
   if (isLoading || !business) {

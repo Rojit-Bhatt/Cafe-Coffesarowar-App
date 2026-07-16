@@ -103,9 +103,9 @@ export default function AdminEvents() {
     onSuccess: () => {
       invalidate();
       setDraft(EMPTY_DRAFT);
-      toast.success("Event added");
+      toast.success("Event added!");
     },
-    onError: (e) => toast.error((e as Error).message || "Failed to add."),
+    onError: (e) => toast.error((e as Error).message || "Couldn't add that — try again."),
   });
 
   const patchEvent = useMutation({
@@ -114,16 +114,16 @@ export default function AdminEvents() {
     onSuccess: () => {
       invalidate();
       setEditingId(null);
-      toast.success("Event updated");
+      toast.success("Event updated!");
     },
-    onError: (e) => toast.error((e as Error).message || "Failed to update."),
+    onError: (e) => toast.error((e as Error).message || "Couldn't update that — try again."),
   });
 
   const deleteEvent = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/admin/events/${id}`, { method: "DELETE", role: "admin" }),
     onSuccess: () => {
       invalidate();
-      toast.success("Event removed");
+      toast.success("Event removed.");
     },
   });
 

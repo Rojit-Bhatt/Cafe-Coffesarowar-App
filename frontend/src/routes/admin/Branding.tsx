@@ -91,9 +91,9 @@ export default function Branding() {
   const save = async () => {
     try {
       await update.mutateAsync({ name, category, branding: brand });
-      toast.success("Branding saved");
+      toast.success("Branding saved!");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save.");
+      toast.error((err as Error).message || "Couldn't save that — try again.");
     }
   };
 

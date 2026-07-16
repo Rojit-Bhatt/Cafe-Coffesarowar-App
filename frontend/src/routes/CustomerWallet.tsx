@@ -78,7 +78,7 @@ function VoucherTicket({
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
-      toast.success("Voucher code copied!");
+      toast.success("Copied! Show that at the counter.");
       setTimeout(() => setCopied(false), 1500);
     } catch {
       // ignore

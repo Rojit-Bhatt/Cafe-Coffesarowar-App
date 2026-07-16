@@ -35,14 +35,14 @@ export default function GlobalCustomerRegister() {
 
   const onSubmit = async (data: RegisterFormValues) => {
     setIsSubmitting(true);
-    const toastId = toast.loading("Creating your account…");
+    const toastId = toast.loading("Setting up your account…");
     try {
       const local = data.phone.replace(/\D/g, "").replace(/^0+/, "");
       await registerUser(data.name, data.email, data.password, `+977${local}`);
-      toast.success("Account created! Check your email.", { id: toastId });
+      toast.success("You're in! Check your email to verify.", { id: toastId });
       setRegisteredEmail(data.email);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to register.", { id: toastId });
+      toast.error((err as Error).message || "Couldn't create your account — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -63,9 +63,9 @@ export default function GlobalCustomerRegister() {
                 method: "POST",
                 body: { email: registeredEmail },
               });
-              toast.success("Verification email resent.");
+              toast.success("Verification email sent — check your inbox.");
             } catch {
-              toast.error("Could not resend. Try again.");
+              toast.error("Couldn't resend that — try again in a bit.");
             }
           }}
           className="w-full rounded-[15px] py-4 text-[15px] font-bold text-white"

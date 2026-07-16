@@ -142,7 +142,7 @@ export default function ClaimLanding() {
       await ensureTenantSession(slug, tenant?.id ?? null);
       if (pendingClaimId) fulfill(pendingClaimId);
     } catch (e) {
-      toast.error((e as Error).message || "Failed to sign in.");
+      toast.error((e as Error).message || "Couldn't sign you in — try again.");
     } finally {
       setBusy(false);
     }
@@ -154,7 +154,7 @@ export default function ClaimLanding() {
       await registerUser(name, email, password, phone, pendingClaimId ?? undefined);
       setStage("awaiting-verification");
     } catch (e) {
-      toast.error((e as Error).message || "Failed to register.");
+      toast.error((e as Error).message || "Couldn't create your account — try again.");
     } finally {
       setBusy(false);
     }

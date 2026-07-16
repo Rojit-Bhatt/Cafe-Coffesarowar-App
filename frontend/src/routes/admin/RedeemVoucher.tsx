@@ -23,7 +23,7 @@ export default function RedeemVoucher() {
         { method: "POST", role: "admin", body: { voucherCode } },
       );
       setResult({ kind: "ok", message: res.message || "Voucher redeemed." });
-      toast.success("Voucher redeemed 🎉");
+      toast.success("Voucher redeemed!");
       setCode("");
     } catch (err) {
       const message = (err as Error).message || "Redemption failed.";

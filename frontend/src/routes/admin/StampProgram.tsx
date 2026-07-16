@@ -46,9 +46,9 @@ export default function StampProgram() {
   const save = async () => {
     try {
       await update.mutateAsync({ program: form });
-      toast.success("Program saved");
+      toast.success("Program saved!");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to save.");
+      toast.error((err as Error).message || "Couldn't save that — try again.");
     }
   };
 

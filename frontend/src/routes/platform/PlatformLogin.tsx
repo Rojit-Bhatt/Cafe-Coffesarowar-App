@@ -33,13 +33,13 @@ export default function PlatformLogin() {
 
   const onSubmit = async (data: FormValues) => {
     setBusy(true);
-    const id = toast.loading("Signing in…");
+    const id = toast.loading("Signing you in…");
     try {
       await login(data.email, data.password);
-      toast.success("Welcome back!", { id });
+      toast.success("Good to see you again!", { id });
       navigate("/platform");
     } catch (err: any) {
-      toast.error(err.message || "Failed to sign in.", { id });
+      toast.error(err.message || "Couldn't sign you in — try again.", { id });
     } finally {
       setBusy(false);
     }
@@ -85,7 +85,7 @@ export default function PlatformLogin() {
               className="mt-2 w-full rounded-[13px] py-4 text-[15px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: "var(--plat)" }}
             >
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? "Signing you in…" : "Sign in"}
             </button>
           </form>
         </div>

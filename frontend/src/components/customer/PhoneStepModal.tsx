@@ -13,7 +13,7 @@ export function PhoneStepModal({ onDone }: { onDone: () => void }) {
   const save = async () => {
     const local = phone.replace(/\D/g, "").replace(/^0+/, "");
     if (local.length < 7) {
-      toast.error("Enter a valid phone number.");
+      toast.error("That phone number doesn't look right.");
       return;
     }
     setBusy(true);
@@ -21,7 +21,7 @@ export function PhoneStepModal({ onDone }: { onDone: () => void }) {
       await completeProfile(`+977${local}`);
       onDone();
     } catch (e) {
-      toast.error((e as Error).message || "Could not save.");
+      toast.error((e as Error).message || "Couldn't save that — try again.");
     } finally {
       setBusy(false);
     }

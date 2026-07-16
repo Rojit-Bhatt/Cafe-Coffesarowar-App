@@ -134,7 +134,7 @@ export function ScannerModal({
                 // Not a URL — decodedText is already the raw token.
               }
 
-              const toastId = toast.loading("Claiming your loyalty stamp...");
+              const toastId = toast.loading("Stamping your card…");
               try {
                 const response = await apiRequest<{
                   success: boolean;
@@ -156,10 +156,10 @@ export function ScannerModal({
                     setPlainStamp(response.data?.stampsEarned ?? 1);
                   }
                 } else {
-                  throw new Error(response.message || "Failed to claim stamp.");
+                  throw new Error(response.message || "Couldn't add that stamp — try again.");
                 }
               } catch (err) {
-                toast.error((err as Error).message || "Failed to claim stamp.", { id: toastId });
+                toast.error((err as Error).message || "Couldn't add that stamp — try again.", { id: toastId });
                 onClose();
               }
             },
@@ -217,7 +217,7 @@ export function ScannerModal({
     if (!earnedVoucher) return;
     navigator.clipboard.writeText(earnedVoucher);
     setCopied(true);
-    toast.success("Voucher code copied!");
+    toast.success("Copied! Show that at the counter.");
     setTimeout(() => setCopied(false), 2000);
   };
 

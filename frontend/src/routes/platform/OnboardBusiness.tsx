@@ -48,7 +48,7 @@ export default function OnboardBusiness() {
 
   const submit = async () => {
     if (!form.name || !form.slug || !form.adminName || !form.adminEmail || !form.adminPassword) {
-      toast.error("Fill in every field.");
+      toast.error("A few fields still need filling in.");
       return;
     }
     setBusy(true);
@@ -61,7 +61,7 @@ export default function OnboardBusiness() {
       setDone({ name: res.business.name, tenantPath: res.tenantPath });
       toast.success(`${res.business.name} is live!`);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to onboard.");
+      toast.error((err as Error).message || "Couldn't onboard that business — try again.");
     } finally {
       setBusy(false);
     }

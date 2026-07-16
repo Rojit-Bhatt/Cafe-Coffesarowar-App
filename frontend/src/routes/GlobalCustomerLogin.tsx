@@ -39,13 +39,13 @@ export default function GlobalCustomerLogin() {
 
   const onSubmit = async (data: LoginFormValues) => {
     setIsSubmitting(true);
-    const toastId = toast.loading("Signing in…");
+    const toastId = toast.loading("Signing you in…");
     try {
       await login(data.email, data.password);
-      toast.success("Welcome back!", { id: toastId });
+      toast.success("Good to see you again!", { id: toastId });
       navigate("/explore");
     } catch (err) {
-      toast.error((err as Error).message || "Failed to sign in.", { id: toastId });
+      toast.error((err as Error).message || "Couldn't sign you in — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -58,7 +58,7 @@ export default function GlobalCustomerLogin() {
       if (needsPhone) setShowPhoneStep(true);
       else navigate("/explore");
     } catch (err) {
-      toast.error((err as Error).message || "Google sign-in failed.");
+      toast.error((err as Error).message || "Google sign-in didn't work — try again.");
     }
   };
 
@@ -130,7 +130,7 @@ export default function GlobalCustomerLogin() {
               <span className="h-px flex-1 bg-[var(--line)]" /> or <span className="h-px flex-1 bg-[var(--line)]" />
             </div>
             <div className="flex justify-center">
-              <GoogleLogin onSuccess={(cred) => onGoogle(cred.credential)} onError={() => toast.error("Google sign-in failed.")} />
+              <GoogleLogin onSuccess={(cred) => onGoogle(cred.credential)} onError={() => toast.error("Google sign-in didn't work — try again.")} />
             </div>
           </div>
         )}

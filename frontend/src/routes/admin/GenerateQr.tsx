@@ -36,7 +36,7 @@ export default function GenerateQr() {
       setToken(res.data.token);
       setTtl(res.data.expiresInSeconds);
     } catch (err) {
-      toast.error((err as Error).message || "Failed to generate code.");
+      toast.error((err as Error).message || "Couldn't generate a code — try again.");
     } finally {
       setLoading(false);
     }

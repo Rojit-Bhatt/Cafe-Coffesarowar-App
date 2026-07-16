@@ -86,7 +86,7 @@ export default function MenuManagement() {
       setPreview(res);
       setPreviewOpen(true);
     } catch (err) {
-      toast.error((err as Error).message || "Couldn't read that file.");
+      toast.error((err as Error).message || "Couldn't read that file — check the format.");
     } finally {
       setPreviewing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -102,12 +102,12 @@ export default function MenuManagement() {
         "/api/admin/menu/import/confirm",
         { method: "POST", role: "admin", body: { rows } },
       );
-      toast.success(`Added ${res.created}, updated ${res.updated} item(s).`);
+      toast.success(`${res.created} added, ${res.updated} updated.`);
       invalidate();
       setPreviewOpen(false);
       setPreview(null);
     } catch (err) {
-      toast.error((err as Error).message || "Import failed.");
+      toast.error((err as Error).message || "Couldn't import that — try again.");
     } finally {
       setApproving(false);
     }
@@ -123,9 +123,9 @@ export default function MenuManagement() {
     onSuccess: () => {
       invalidate();
       setDraft({ name: "", description: "", price: "", category: "General" });
-      toast.success("Item added");
+      toast.success("Item added!");
     },
-    onError: (e) => toast.error((e as Error).message || "Failed to add."),
+    onError: (e) => toast.error((e as Error).message || "Couldn't add that — try again."),
   });
 
   const patchItem = useMutation({
@@ -138,7 +138,7 @@ export default function MenuManagement() {
     mutationFn: (id: string) => apiRequest(`/api/admin/menu/${id}`, { method: "DELETE", role: "admin" }),
     onSuccess: () => {
       invalidate();
-      toast.success("Item removed");
+      toast.success("Item removed.");
     },
   });
 
