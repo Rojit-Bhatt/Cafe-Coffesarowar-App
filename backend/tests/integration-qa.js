@@ -117,18 +117,18 @@ async function runQa() {
       results["FLOW-2-LOGIN"] = "FAIL";
     }
 
-    // 3. Visit Dashboard / Stamp Card with token
+    // 3. Visit Dashboard / points balance with token
     if (customerToken) {
-      console.log("3. Testing Stamp Card fetching with valid token...");
-      const cardRes = await jsonFetch("/api/stamps/balance", {
+      console.log("3. Testing points balance fetching with valid token...");
+      const cardRes = await jsonFetch("/api/points/balance", {
         headers: { Authorization: `Bearer ${customerToken}` },
       });
       const cardData = await cardRes.json();
-      if (cardRes.ok && cardData.success) {
-        console.log("✅ Fetch Stamp Card Succeeded:", cardData);
+      if (cardRes.ok && cardData.success && typeof cardData.data.balance === "number") {
+        console.log("✅ Fetch points balance Succeeded:", cardData);
         results["FLOW-3-DASHBOARD-DATA"] = "PASS";
       } else {
-        console.error("❌ Fetch Stamp Card Failed:", cardData);
+        console.error("❌ Fetch points balance Failed:", cardData);
         results["FLOW-3-DASHBOARD-DATA"] = "FAIL";
       }
     } else {
@@ -136,8 +136,8 @@ async function runQa() {
     }
 
     // 4. Visit without logged in (Auth Guard check simulation)
-    console.log("4. Testing Stamp Card fetching WITHOUT token...");
-    const cardNoAuthRes = await jsonFetch("/api/stamps/balance");
+    console.log("4. Testing points balance fetching WITHOUT token...");
+    const cardNoAuthRes = await jsonFetch("/api/points/balance");
     const cardNoAuthData = await cardNoAuthRes.json();
     if (cardNoAuthRes.status === 401 || !cardNoAuthData.success) {
       console.log("✅ Correctly rejected unauthenticated request:", cardNoAuthData);
@@ -147,22 +147,22 @@ async function runQa() {
       results["FLOW-4-AUTH-GUARD"] = "FAIL";
     }
 
-    // 6. Wallet Vouchers Fetching
+    // 6. Points history fetching
     if (customerToken) {
-      console.log("6. Testing Vouchers fetch with valid token...");
-      const vouchersRes = await jsonFetch("/api/vouchers/my-wallet", {
+      console.log("6. Testing points history fetch with valid token...");
+      const histRes = await jsonFetch("/api/points/history", {
         headers: { Authorization: `Bearer ${customerToken}` },
       });
-      const vouchersData = await vouchersRes.json();
-      if (vouchersRes.ok && Array.isArray(vouchersData.vouchers)) {
-        console.log(`✅ Fetch Vouchers Succeeded (found ${vouchersData.vouchers.length} vouchers):`, vouchersData);
-        results["FLOW-6-WALLET-DATA"] = "PASS";
+      const histData = await histRes.json();
+      if (histRes.ok && Array.isArray(histData.data)) {
+        console.log(`✅ Fetch points history Succeeded (${histData.data.length} rows)`);
+        results["FLOW-6-HISTORY-DATA"] = "PASS";
       } else {
-        console.error("❌ Fetch Vouchers Failed:", vouchersData);
-        results["FLOW-6-WALLET-DATA"] = "FAIL";
+        console.error("❌ Fetch points history Failed:", histData);
+        results["FLOW-6-HISTORY-DATA"] = "FAIL";
       }
     } else {
-      results["FLOW-6-WALLET-DATA"] = "SKIP";
+      results["FLOW-6-HISTORY-DATA"] = "SKIP";
     }
 
   } catch (err) {
@@ -203,7 +203,7 @@ async function runQa() {
 
     // 8. Admin Guard Check
     console.log("8. Testing Admin Console path protection...");
-    const adminConsoleNoAuthRes = await jsonFetch("/api/admin/recent-scans");
+    const adminConsoleNoAuthRes = await jsonFetch("/api/admin/transactions");
     const adminConsoleNoAuthData = await adminConsoleNoAuthRes.json();
     if (adminConsoleNoAuthRes.status === 401 || !adminConsoleNoAuthData.success) {
       console.log("✅ Correctly rejected unauthenticated admin request:", adminConsoleNoAuthData);
@@ -213,13 +213,15 @@ async function runQa() {
       results["FLOW-8-ADMIN-GUARD"] = "FAIL";
     }
 
-    // 10. Generate New Stamp Token (QR code data)
+    // 10. Generate an earn QR. A bill amount is mandatory now — the award is
+    // a function of it, so a bill-less token could only ever award zero.
     let qrToken = null;
     if (adminToken) {
-      console.log("10. Testing QR Stamp Token Generation...");
+      console.log("10. Testing QR earn Token Generation...");
       const qrRes = await jsonFetch("/api/admin/generate-qr", {
         method: "POST",
         headers: { Authorization: `Bearer ${adminToken}` },
+        body: { billAmount: 450 },
       });
       const qrData = await qrRes.json();
       if (qrRes.ok && qrData.success && qrData.data && qrData.data.token) {
@@ -234,42 +236,42 @@ async function runQa() {
       results["FLOW-10-QR-GENERATION"] = "SKIP";
     }
 
-    // 11. Live Scans Poll
+    // 11. Outlet transaction ledger
     if (adminToken) {
-      console.log("11. Testing Live Scans listing (poll endpoint)...");
-      const scansRes = await jsonFetch("/api/admin/recent-scans", {
+      console.log("11. Testing outlet transaction ledger...");
+      const scansRes = await jsonFetch("/api/admin/transactions", {
         headers: { Authorization: `Bearer ${adminToken}` },
       });
       const scansData = await scansRes.json();
-      if (scansRes.ok && scansData.success) {
-        console.log("✅ Live Scans fetch Succeeded:", scansData);
-        results["FLOW-11-LIVE-SCANS-POLL"] = "PASS";
+      if (scansRes.ok && scansData.success && Array.isArray(scansData.data)) {
+        console.log(`✅ Transaction ledger fetch Succeeded (${scansData.data.length} rows)`);
+        results["FLOW-11-LEDGER-POLL"] = "PASS";
       } else {
-        console.error("❌ Live Scans fetch Failed:", scansData);
-        results["FLOW-11-LIVE-SCANS-POLL"] = "FAIL";
+        console.error("❌ Transaction ledger fetch Failed:", scansData);
+        results["FLOW-11-LEDGER-POLL"] = "FAIL";
       }
     } else {
-      results["FLOW-11-LIVE-SCANS-POLL"] = "SKIP";
+      results["FLOW-11-LEDGER-POLL"] = "SKIP";
     }
 
-    // 12. Test voucher verification with known invalid code
+    // 12. A bill-less earn QR must be refused.
     if (adminToken) {
-      console.log("12. Testing voucher redemption with invalid code 'COFF-INVALID1'...");
-      const redeemRes = await jsonFetch("/api/admin/redeem-voucher", {
+      console.log("12. Testing that an earn QR without a bill is refused...");
+      const noBillRes = await jsonFetch("/api/admin/generate-qr", {
         method: "POST",
         headers: { Authorization: `Bearer ${adminToken}` },
-        body: { voucherCode: "COFF-INVALID1" },
+        body: {},
       });
-      const redeemData = await redeemRes.json();
-      if (redeemRes.status === 404 || redeemRes.status === 400 || !redeemData.success) {
-        console.log("✅ Correctly rejected invalid voucher:", redeemData);
-        results["FLOW-12-VOUCHER-INVALID"] = "PASS";
+      const noBillData = await noBillRes.json();
+      if (noBillRes.status === 400 && !noBillData.success) {
+        console.log("✅ Correctly refused a bill-less earn QR:", noBillData.message);
+        results["FLOW-12-BILL-REQUIRED"] = "PASS";
       } else {
-        console.error("❌ False positive: allowed invalid voucher redemption:", redeemData);
-        results["FLOW-12-VOUCHER-INVALID"] = "FAIL";
+        console.error("❌ False positive: issued an earn QR with no bill:", noBillData);
+        results["FLOW-12-BILL-REQUIRED"] = "FAIL";
       }
     } else {
-      results["FLOW-12-VOUCHER-INVALID"] = "SKIP";
+      results["FLOW-12-BILL-REQUIRED"] = "SKIP";
     }
 
   } catch (err) {

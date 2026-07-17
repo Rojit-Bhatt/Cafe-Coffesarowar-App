@@ -1,14 +1,12 @@
 /**
- * Excel business reports suite (Epic D2, updated for the ExcelJS migration,
- * dashboard analytics, and the Voucher Performance report).
+ * Excel business reports suite.
  *
  * Self-contained: boots its own server on a dedicated port against the
- * in-memory mock DB. Drives a claim with a bill amount, then confirms the
+ * in-memory mock DB. Drives an earn with a bill amount, then confirms the
  * summary stats are correctly scoped to a date range (inclusion via a range
- * covering today, exclusion via a range entirely in the future), that both
- * report downloads parse back with the right shape, that the dashboard
- * stats endpoint returns real (non-fabricated) numbers, and that the
- * Voucher Performance report's cohort math is self-consistent.
+ * covering today, exclusion via a range entirely in the future), that every
+ * report download parses back with the right shape, and that the dashboard
+ * stats endpoint returns real (non-fabricated) numbers.
  *
  * Run directly: `node tests/business-reports.js`
  */
@@ -83,8 +81,8 @@ async function main() {
     const customerToken = customerLogin.body.token;
 
     const gen = await api("/api/admin/generate-qr", { method: "POST", token: adminToken, body: { billAmount: 400 } });
-    const claim = await api("/api/stamps/claim", { method: "POST", token: customerToken, body: { token: gen.body.data.token } });
-    check("claim with bill amount succeeds", claim.status === 200);
+    const claim = await api("/api/points/claim", { method: "POST", token: customerToken, body: { token: gen.body.data.token } });
+    check("earn on a 400 bill succeeds", claim.status === 200);
 
     const today = new Date();
     const todayStart = isoDate(today);
@@ -97,7 +95,7 @@ async function main() {
     );
     check("inclusive range -> 200", included.status === 200);
     check("inclusive range counts the new customer", included.body.newCustomers >= 1);
-    check("inclusive range counts the stamp claim", included.body.stampsIssued >= 1);
+    check("inclusive range counts the points issued", included.body.pointsIssued >= 400);
     check("inclusive range includes the revenue", included.body.totalRevenue >= 400);
 
     // Exclusive range: entirely in the future, must exclude everything.
@@ -110,13 +108,13 @@ async function main() {
     );
     check("exclusive (future) range -> 200", excluded.status === 200);
     check("exclusive range shows 0 new customers", excluded.body.newCustomers === 0);
-    check("exclusive range shows 0 stamps issued", excluded.body.stampsIssued === 0);
+    check("exclusive range shows 0 points issued", excluded.body.pointsIssued === 0);
     check("exclusive range shows 0 revenue", excluded.body.totalRevenue === 0);
 
     // No params -> defaults to last 30 days, must not error and must include today's activity.
     const defaulted = await api("/api/admin/reports/summary", { token: adminToken });
     check("default range -> 200", defaulted.status === 200);
-    check("default range includes today's claim", defaulted.body.stampsIssued >= 1);
+    check("default range includes today's earn", defaulted.body.pointsIssued >= 400);
 
     // Summary download parses back with the right values (now via ExcelJS).
     const summaryDownload = await fetch(
@@ -127,7 +125,7 @@ async function main() {
     const summaryBuf = Buffer.from(await summaryDownload.arrayBuffer());
     const summaryRows = await readSheetRows(summaryBuf);
     const summaryFlat = summaryRows.flat().join(" ");
-    check("summary workbook mentions stamps issued", summaryFlat.toLowerCase().includes("stamps issued"));
+    check("summary workbook mentions points issued", summaryFlat.toLowerCase().includes("points issued"));
 
     // Customers download parses back with the right columns and the new customer's row.
     const customersDownload = await fetch(`${baseUrl}/api/admin/reports/customers/download`, {
@@ -141,48 +139,32 @@ async function main() {
     check("customers row has correct phone", myRow?.Phone === "+9779813334444");
     check("customers row has correct total spent", myRow?.["Total Spent"] === 400);
 
-    // Dashboard stats: real numbers, not fabricated. Snapshot metric
-    // (active vouchers) must carry no trend; flow metrics must.
+    // Dashboard stats: real numbers, not fabricated. The snapshot metric
+    // (points outstanding) must carry no trend; flow metrics must.
     const dashboard = await api("/api/admin/dashboard-stats", { token: adminToken });
     check("dashboard-stats -> 200", dashboard.status === 200);
     check("dashboard newCustomers has a numeric value", typeof dashboard.body?.newCustomers?.value === "number");
     check("dashboard newCustomers reflects today's signup", dashboard.body?.newCustomers?.value >= 1);
-    check("dashboard stampsIssued reflects today's claim", dashboard.body?.stampsIssued?.value >= 1);
+    check("dashboard pointsIssued reflects today's earn", dashboard.body?.pointsIssued?.value >= 400);
     check("dashboard revenue reflects today's bill amount", dashboard.body?.revenue?.value >= 400);
-    check("dashboard activeVouchers has no trend (snapshot metric)", dashboard.body?.activeVouchers?.trend === null);
-    check("dashboard stampVelocity covers 14 days", Array.isArray(dashboard.body?.stampVelocity) && dashboard.body.stampVelocity.length === 14);
-    check("dashboard voucherActivity covers 8 weeks", Array.isArray(dashboard.body?.voucherActivity) && dashboard.body.voucherActivity.length === 8);
-    const todayVelocity = dashboard.body.stampVelocity.find((d) => d.date === todayStart);
-    check("today's stamp appears in the velocity series", Boolean(todayVelocity) && todayVelocity.count >= 1);
+    check("dashboard pointsOutstanding has no trend (snapshot metric)", dashboard.body?.pointsOutstanding?.trend === null);
+    check("dashboard pointsOutstanding counts the balance just earned", dashboard.body?.pointsOutstanding?.value >= 400);
+    check("dashboard pointsVelocity covers 14 days", Array.isArray(dashboard.body?.pointsVelocity) && dashboard.body.pointsVelocity.length === 14);
+    check("dashboard pointsActivity covers 8 weeks", Array.isArray(dashboard.body?.pointsActivity) && dashboard.body.pointsActivity.length === 8);
+    const todayVelocity = dashboard.body.pointsVelocity.find((d) => d.date === todayStart);
+    check("today's earn appears in the velocity series", Boolean(todayVelocity) && todayVelocity.points >= 400);
 
-    // Voucher Performance report: cohort math is self-consistent.
-    const voucherPerf = await api(
-      `/api/admin/reports/vouchers?startDate=${todayStart}&endDate=${todayEnd}`,
-      { token: adminToken },
-    );
-    check("voucher performance -> 200", voucherPerf.status === 200);
-    check(
-      "totalEarned = totalRedeemed + totalPending",
-      voucherPerf.body?.totalEarned === voucherPerf.body?.totalRedeemed + voucherPerf.body?.totalPending,
-    );
-    check(
-      "redemptionRate is a percentage in [0, 100]",
-      typeof voucherPerf.body?.redemptionRate === "number" &&
-        voucherPerf.body.redemptionRate >= 0 &&
-        voucherPerf.body.redemptionRate <= 100,
-    );
-
-    const voucherPerfDownload = await fetch(
-      `${baseUrl}/api/admin/reports/vouchers/download?startDate=${todayStart}&endDate=${todayEnd}`,
-      { headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG } },
-    );
-    check("voucher performance download -> 200", voucherPerfDownload.status === 200);
-    const voucherPerfBuf = Buffer.from(await voucherPerfDownload.arrayBuffer());
-    const voucherPerfRows = await readSheetRows(voucherPerfBuf, 0);
-    check(
-      "voucher performance workbook mentions redemption rate",
-      voucherPerfRows.flat().join(" ").toLowerCase().includes("redemption rate"),
-    );
+    // The transactions export is the ledger as a spreadsheet.
+    const txnDownload = await fetch(`${baseUrl}/api/admin/reports/transactions/download`, {
+      headers: { Authorization: `Bearer ${adminToken}`, "X-Company-Slug": COMPANY, "X-Outlet-Slug": SLUG },
+    });
+    check("transactions download -> 200", txnDownload.status === 200);
+    const txnBuf = Buffer.from(await txnDownload.arrayBuffer());
+    const txnRows = await readSheetAsObjects(txnBuf);
+    const myTxn = txnRows.find((r) => r.Customer === "D2 Tester");
+    check("transactions workbook has this customer's earn row", Boolean(myTxn));
+    check("transactions row records the bill", myTxn?.["Bill Amount"] === 400);
+    check("transactions row records the points", myTxn?.Points === 400);
 
     // Tenant isolation.
     const platformLogin = await api("/api/platform/login", {
@@ -200,10 +182,10 @@ async function main() {
       `/api/admin/reports/summary?startDate=${todayStart}&endDate=${todayEnd}`,
       { slug: sibling.outletSlug, token: secondLogin.body.token },
     );
-    check("second tenant's summary shows 0 (unaffected by coffesarowar's activity)", secondSummary.body.stampsIssued === 0);
+    check("second tenant's summary shows 0 (unaffected by coffesarowar's activity)", secondSummary.body.pointsIssued === 0);
 
     const secondDashboard = await api("/api/admin/dashboard-stats", { slug: sibling.outletSlug, token: secondLogin.body.token });
-    check("second tenant's dashboard shows 0 stamps (unaffected)", secondDashboard.body?.stampsIssued?.value === 0);
+    check("second tenant's dashboard shows 0 points (unaffected)", secondDashboard.body?.pointsIssued?.value === 0);
   } finally {
     stop();
   }

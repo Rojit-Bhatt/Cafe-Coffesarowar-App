@@ -43,20 +43,14 @@ async function main() {
     const before = await api("/api/platform/analytics", { token: platformToken });
     check("analytics reachable -> 200", before.status === 200);
     check("businessesTotal >= 1 (seeded coffesarowar)", before.body.businessesTotal >= 1);
-    const stampsBefore = before.body.stampsIssued.value;
+    const pointsBefore = before.body.pointsIssued.value;
 
-    // Onboard a second tenant and drive a stamp claim on it.
+    // Onboard a second tenant and drive an earn on it.
     const runSuffix = Date.now();
     const sibling = await makeSiblingOutlet(baseUrl, { label: `pa${runSuffix}` });
     const slug = sibling.outletSlug;
     check("2nd outlet stood up", Boolean(sibling.outletId));
     const adminToken = sibling.adminToken;
-
-    await api("/api/admin/settings", {
-      method: "PATCH",
-      token: adminToken,
-      body: { program: { cooldownHours: 0, minBillAmount: 0 } },
-    });
 
     const custEmail = `cust+${runSuffix}@rollup.test`;
     await api("/api/auth/register", {
@@ -74,17 +68,17 @@ async function main() {
     const custToken = custLogin.body.token;
 
     const gen = await api("/api/admin/generate-qr", { method: "POST", token: adminToken, body: { billAmount: 500 } });
-    const claim = await api("/api/stamps/claim", { method: "POST", token: custToken, body: { token: gen.body?.data?.token } });
-    check("stamp claimed on 2nd tenant -> 200", claim.status === 200);
+    const claim = await api("/api/points/claim", { method: "POST", token: custToken, body: { token: gen.body?.data?.token } });
+    check("points earned on 2nd tenant -> 200", claim.status === 200);
 
     const after = await api("/api/platform/analytics", { token: platformToken });
     check("businessesTotal grew by 1", after.body.businessesTotal === before.body.businessesTotal + 1);
     check(
-      "platform-wide stampsIssued (current-week window) grew — rollup includes the new tenant's activity",
-      after.body.stampsIssued.value === stampsBefore + 1,
+      "platform-wide pointsIssued (current-week window) grew by the 500 just earned — rollup includes the new tenant's activity",
+      after.body.pointsIssued.value === pointsBefore + 500,
     );
     check("revenue is a real number reflecting the 500 bill", typeof after.body.revenue.value === "number" && after.body.revenue.value >= 500);
-    check("stampVelocity is a 14-entry day-bucketed series", Array.isArray(after.body.stampVelocity) && after.body.stampVelocity.length === 14);
+    check("pointsVelocity is a 14-entry day-bucketed series", Array.isArray(after.body.pointsVelocity) && after.body.pointsVelocity.length === 14);
 
     // A business_admin (not platform) cannot read this endpoint.
     const forbidden = await api("/api/platform/analytics", { token: adminToken });

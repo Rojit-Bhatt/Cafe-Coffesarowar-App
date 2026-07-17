@@ -2,8 +2,8 @@
  * Customer detail drill-in suite (Epic D1).
  *
  * Self-contained: boots its own server on a dedicated port against the
- * in-memory mock DB. Drives generate-qr with a bill amount through to a
- * claim, and confirms getCustomersList surfaces the new fields correctly.
+ * in-memory mock DB. Drives generate-qr with a bill amount through to an
+ * earn, and confirms getCustomersList surfaces the new fields correctly.
  *
  * Run directly: `node tests/customer-detail.js`
  */
@@ -50,33 +50,32 @@ async function main() {
     const customerLogin = await api("/api/auth/login", { method: "POST", body: { email, password: "password" } });
     const customerToken = customerLogin.body.token;
 
-    // Remove the default cooldown so the three claims below aren't blocked
-    // by "one stamp every 18 hours" (unrelated to this test's purpose).
-    await api("/api/admin/settings", { method: "PATCH", token: adminToken, body: { program: { cooldownHours: 0 } } });
-
-    // Claim 1: bill amount 500.
+    // No cooldown exists any more — three bills back-to-back are three earns.
+    // Earn 1: bill 500.
     const gen1 = await api("/api/admin/generate-qr", { method: "POST", token: adminToken, body: { billAmount: 500 } });
-    const claim1 = await api("/api/stamps/claim", { method: "POST", token: customerToken, body: { token: gen1.body.data.token } });
-    check("first claim succeeds", claim1.status === 200);
+    const claim1 = await api("/api/points/claim", { method: "POST", token: customerToken, body: { token: gen1.body.data.token } });
+    check("first earn succeeds", claim1.status === 200);
 
-    // Claim 2: no bill amount at all (gate disabled by default on this tenant).
-    const gen2 = await api("/api/admin/generate-qr", { method: "POST", token: adminToken });
-    const claim2 = await api("/api/stamps/claim", { method: "POST", token: customerToken, body: { token: gen2.body.data.token } });
-    check("second claim succeeds", claim2.status === 200);
+    // A bill is mandatory now, so the old "claim with no amount" case is
+    // gone: the QR itself is refused before a customer ever sees it.
+    const genNoBill = await api("/api/admin/generate-qr", { method: "POST", token: adminToken });
+    check("an earn QR with no bill is refused outright", genNoBill.status === 400);
 
-    // Claim 3: bill amount 300.
+    // Earn 2: bill 300.
     const gen3 = await api("/api/admin/generate-qr", { method: "POST", token: adminToken, body: { billAmount: 300 } });
-    const claim3 = await api("/api/stamps/claim", { method: "POST", token: customerToken, body: { token: gen3.body.data.token } });
-    check("third claim succeeds", claim3.status === 200);
+    const claim3 = await api("/api/points/claim", { method: "POST", token: customerToken, body: { token: gen3.body.data.token } });
+    check("second earn succeeds", claim3.status === 200);
 
     const list = await api("/api/admin/customers", { token: adminToken });
     const me = (list.body?.data || []).find((c) => c.email === email);
     check("customer found in list", Boolean(me));
     check("phone surfaced", me?.phone === "+9779811112222");
     check("address surfaced", me?.address === "123 Test Lane");
-    check("totalSpent sums entered amounts, ignores the no-amount claim", me?.totalSpent === 800);
-    check("lifetimeVoucherCount is 0 (no milestone reached yet)", me?.lifetimeVoucherCount === 0);
-    check("scanHistory has 3 entries", Array.isArray(me?.scanHistory) && me.scanHistory.length === 3);
+    check("totalSpent sums the bills actually paid", me?.totalSpent === 800);
+    check("pointsBalance is 800 at the default 100% rate", me?.pointsBalance === 800);
+    check("lifetimePoints is 800", me?.lifetimePoints === 800);
+    check("redemptionCount is 0 (nothing redeemed yet)", me?.redemptionCount === 0);
+    check("history has 2 entries", Array.isArray(me?.history) && me.history.length === 2);
 
     // Tenant isolation: a 2nd tenant's customer list doesn't see this activity.
     // A sibling outlet under the SAME company — a stronger isolation test

@@ -83,7 +83,7 @@ async function run() {
   console.log("\n== Tenant public info ==");
   const t1 = await api("/api/tenant", { slug: "durbarmarg" });
   ok(t1.status === 200 && t1.json?.tenant?.name === "Coffesarowar Durbarmarg", "coffesarowar outlet public info resolves");
-  ok(t1.json?.tenant?.program?.stampsRequired === 5, "outlet inherits its company's 5-stamp default");
+  ok(t1.json?.tenant?.program?.earnPercent === 100, "outlet inherits its company's 100% earn default");
 
   const tbad = await api("/api/tenant", { slug: "does-not-exist" });
   ok(tbad.status === 404, "unknown outlet slug -> 404");
@@ -96,25 +96,25 @@ async function run() {
   const setCfg = await api("/api/admin/settings", {
     method: "PATCH",
     token: brewAdmin,
-    body: { program: { stampsRequired: 8, rewardTitle: "Free Pastry" } },
+    body: { program: { earnPercent: 50 } },
   });
-  ok(setCfg.status === 200, "2nd tenant admin updates its program to 8 stamps / Free Pastry");
+  ok(setCfg.status === 200, "2nd tenant admin overrides its program to earn 50%");
 
   const t2 = await api("/api/tenant", { slug: secondTenantSlug });
-  ok(
-    t2.json?.tenant?.program?.stampsRequired === 8 && t2.json?.tenant?.program?.rewardTitle === "Free Pastry",
-    "2nd tenant now 8 stamps / Free Pastry"
-  );
+  ok(t2.json?.tenant?.program?.earnPercent === 50, "2nd tenant now earns at 50%");
   const t1Again = await api("/api/tenant", { slug: "durbarmarg" });
-  ok(t1Again.json?.tenant?.program?.stampsRequired === 5, "coffesarowar program unaffected by 2nd tenant's change");
+  ok(
+    t1Again.json?.tenant?.program?.earnPercent === 100,
+    "sibling outlet still inherits 100% — one outlet's override doesn't touch another's"
+  );
 
-  console.log("\n== Customer stamp -> voucher loop on coffesarowar ==");
+  console.log("\n== Customer earn loop on coffesarowar ==");
   await api("/api/auth/register", {
     method: "POST",
     slug: "durbarmarg",
     body: { name: "Alice", email: aliceEmail, phone: "+9779812345678", password: "password" },
   });
-  // Alice registers unverified; stamping is gated on emailVerified. Mint +
+  // Alice registers unverified; earning is gated on emailVerified. Mint +
   // consume an email-verify token via the dev-only hook to verify her.
   const aliceMint = await api("/__test__/mint-token", {
     method: "POST",
@@ -124,7 +124,7 @@ async function run() {
   const aliceVerify = await api(`/api/auth/verify-email?token=${aliceMint.json?.token}`, {
     slug: "durbarmarg",
   });
-  ok(aliceVerify.status === 200, "Alice verifies her email before collecting stamps");
+  ok(aliceVerify.status === 200, "Alice verifies her email before collecting points");
   const clogin = await api("/api/auth/login", {
     method: "POST",
     slug: "durbarmarg",
@@ -133,8 +133,8 @@ async function run() {
   ok(clogin.status === 200 && !!clogin.json?.token, "customer Alice registers + logs in on coffesarowar");
   const aliceToken = clogin.json?.token;
 
-  const bal0 = await api("/api/stamps/balance", { token: aliceToken });
-  ok(bal0.json?.data?.stampsEarned === 0 && bal0.json?.data?.stampsRequired === 5, "Alice starts at 0/5 stamps");
+  const bal0 = await api("/api/points/balance", { token: aliceToken });
+  ok(bal0.json?.data?.balance === 0 && bal0.json?.data?.earnPercent === 100, "Alice starts at 0 points, earning 100%");
 
   const baristaLogin = await api("/api/admin-auth/login", {
     method: "POST",
@@ -143,43 +143,42 @@ async function run() {
   ok(baristaLogin.status === 200 && !!baristaLogin.json?.token, "coffesarowar barista logs in");
   const barista = baristaLogin.json?.token;
 
-  // Remove the 18h cooldown so the claim loop below isn't blocked by it.
-  const cooldownReset = await api("/api/admin/settings", {
-    method: "PATCH",
-    token: barista,
-    body: { program: { cooldownHours: 0 } },
-  });
-  ok(cooldownReset.status === 200, "barista sets cooldownHours to 0 for the test run");
-
-  let voucherCode = null;
-  for (let i = 1; i <= 5; i++) {
-    const qr = await api("/api/admin/generate-qr", { method: "POST", token: barista });
-    const claim = await api("/api/stamps/claim", {
-      method: "POST",
-      token: aliceToken,
-      body: { token: qr.json?.data?.token },
-    });
-    if (claim.json?.data?.rewardTriggered) {
-      voucherCode = claim.json.data.voucherCode;
-    }
+  // No cooldown exists any more: three bills back-to-back are three earns.
+  for (const bill of [200, 300, 500]) {
+    const qr = await api("/api/admin/generate-qr", { method: "POST", token: barista, body: { billAmount: bill } });
+    await api("/api/points/claim", { method: "POST", token: aliceToken, body: { token: qr.json?.data?.token } });
   }
-  ok(!!voucherCode, `Alice earned a voucher after 5 stamps: ${voucherCode}`);
-  ok(!!voucherCode && voucherCode.startsWith("DURB-"), "voucher uses the outlet's per-outlet prefix DURB-");
+  const balAfter = await api("/api/points/balance", { token: aliceToken });
+  ok(balAfter.json?.data?.balance === 1000, "three bills (200+300+500) earn 1000 points, no cooldown in the way");
 
-  console.log("\n== ISOLATION: 2nd tenant admin cannot redeem coffesarowar's voucher ==");
-  const crossRedeem = await api("/api/admin/redeem-voucher", {
-    method: "POST",
-    token: brewAdmin,
-    body: { voucherCode },
-  });
-  ok(crossRedeem.status >= 400, "cross-tenant redeem is rejected");
+  console.log("\n== ISOLATION: a sibling outlet's redeem QR cannot spend this outlet's points ==");
+  // The sibling belongs to the SAME company — a strictly stronger test than
+  // two unrelated businesses, since these two share an owner.
+  const siblingRedeemQr = await api("/api/admin/generate-redeem-qr", { method: "POST", token: brewAdmin });
+  ok(siblingRedeemQr.status === 201, "sibling outlet issues its own redeem QR");
 
-  const properRedeem = await api("/api/admin/redeem-voucher", {
+  const coffCatalog = await api("/api/points/catalog", { token: aliceToken });
+  const coffItemId = coffCatalog.json?.data?.[0]?.id;
+  ok(!!coffItemId, "coffesarowar has a redeemable item");
+
+  const crossRedeem = await api("/api/points/redeem", {
     method: "POST",
-    token: barista,
-    body: { voucherCode },
+    token: aliceToken,
+    body: { token: siblingRedeemQr.json?.data?.token, itemId: coffItemId },
   });
-  ok(properRedeem.status === 200, "coffesarowar barista redeems its own voucher");
+  ok(crossRedeem.status >= 400, "a sibling outlet's redeem token is rejected against this outlet's balance");
+
+  const balUntouched = await api("/api/points/balance", { token: aliceToken });
+  ok(balUntouched.json?.data?.balance === 1000, "the rejected cross-outlet redeem left the balance untouched");
+
+  const properRedeemQr = await api("/api/admin/generate-redeem-qr", { method: "POST", token: barista });
+  const properRedeem = await api("/api/points/redeem", {
+    method: "POST",
+    token: aliceToken,
+    body: { token: properRedeemQr.json?.data?.token, itemId: coffItemId },
+  });
+  ok(properRedeem.status === 200, "the outlet's own redeem QR works");
+  ok(properRedeem.json?.data?.balance === 820, "redeeming the 180-point House Coffee leaves 820");
 
   console.log("\n== ISOLATION: customer lists are scoped per tenant ==");
   const brewCustomers = await api("/api/admin/customers", { token: brewAdmin });

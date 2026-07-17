@@ -5,7 +5,7 @@
  * existing tenant-scoped auth: CustomerAccount (global identity),
  * PendingClaim (QR-link claim lifecycle), and the /api/customer-auth +
  * /api/claim route groups. authService/authRoutes/authMiddleware and
- * claimStamp's external contract are untouched, so this suite exercises
+ * the claim contract are untouched, so this suite exercises
  * only the new surface.
  *
  * Self-contained: boots its own server on a dedicated port against the
@@ -197,40 +197,41 @@ async function main() {
     const happyMembershipUserIdB = happyEnterTenantB.body?.user?.id;
     check("same account entering tenant B -> distinct membership id", Boolean(happyMembershipUserIdB) && happyMembershipUserIdB !== happyMembershipUserId);
 
-    // Earn a stamp for this same account at tenant B too.
+    // Earn points for this same account at tenant B too.
     const bQr = await generateQr(adminBToken, SLUG_B, 200);
     const bQrToken = bQr.body?.data?.token;
     const bStart = await startClaim(SLUG_B, bQrToken);
     const bPendingClaimId = bStart.body?.data?.pendingClaimId;
     const bFulfill = await fulfillClaim(happyTenantBToken, bPendingClaimId);
-    check("stamp earned at tenant B via same global account -> 200", bFulfill.status === 200);
+    check("points earned at tenant B via same global account -> 200", bFulfill.status === 200);
 
     // --- Tenant-A JWT presented against a tenant-B pending claim -> 404,
     // not a data leak (mirrors the codebase's hard tenant-JWT invariant). ---
     const crossTenantFulfill = await fulfillClaim(happyTenantToken, bPendingClaimId);
     check("tenant-A JWT against tenant-B pending claim -> 404", crossTenantFulfill.status === 404);
 
-    // --- Reporting isolation: same account, stamped at both tenants, shows
-    // as two separate rows with independent counts in each tenant's own
-    // admin customers list and summary report. ---
+    // --- Reporting isolation: same account, earning at both tenants, shows
+    // as two separate rows with independent balances in each tenant's own
+    // admin customers list and summary report. Points never pool across
+    // outlets, so the two balances must stay strictly separate. ---
     const customersA = await api("/api/admin/customers", { slug: SLUG_A, token: adminAToken });
     const rowA = (customersA.body?.data || []).find((c) => c.id === happyMembershipUserId);
     check("tenant A customers list has this customer's own row", Boolean(rowA));
-    check("tenant A customer row stampsEarned reflects only tenant A's stamp", rowA?.stampsEarned === 1);
+    check("tenant A customer row balance reflects only tenant A's 500 bill", rowA?.pointsBalance === 500);
 
     const customersB = await api("/api/admin/customers", { slug: SLUG_B, token: adminBToken });
     const rowB = (customersB.body?.data || []).find((c) => c.id === happyMembershipUserIdB);
     check("tenant B customers list has a separate row for the same person", Boolean(rowB));
-    check("tenant B customer row stampsEarned reflects only tenant B's stamp", rowB?.stampsEarned === 1);
+    check("tenant B customer row balance reflects only tenant B's 200 bill", rowB?.pointsBalance === 200);
     check("tenant A and tenant B rows are different User ids", rowA?.id !== rowB?.id);
 
     const summaryA = await api("/api/admin/reports/summary", { slug: SLUG_A, token: adminAToken });
     check("tenant A summary report reachable -> 200", summaryA.status === 200);
-    check("tenant A summary stampsIssued counts only tenant A's events", typeof summaryA.body?.stampsIssued === "number" && summaryA.body.stampsIssued >= 2);
+    check("tenant A summary pointsIssued counts only tenant A's earns", typeof summaryA.body?.pointsIssued === "number" && summaryA.body.pointsIssued >= 800);
 
     const summaryB = await api("/api/admin/reports/summary", { slug: SLUG_B, token: adminBToken });
     check("tenant B summary report reachable -> 200", summaryB.status === 200);
-    check("tenant B summary stampsIssued counts only tenant B's events (isolated from A)", summaryB.body?.stampsIssued === 1);
+    check("tenant B summary pointsIssued counts only tenant B's earns (isolated from A)", summaryB.body?.pointsIssued === 200);
   } finally {
     stop();
   }

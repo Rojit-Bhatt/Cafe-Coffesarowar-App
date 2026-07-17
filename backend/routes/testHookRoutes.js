@@ -92,7 +92,11 @@ router.post("/mint-admin-token", async (req, res, next) => {
 router.post("/expire-points", async (req, res, next) => {
   try {
     const { email, organizationId, daysAgo } = req.body;
-    const offsetMs = (Number(daysAgo) || 400) * 24 * 60 * 60 * 1000;
+    // Explicitly not `Number(daysAgo) || 400`: daysAgo: 0 means "reset the
+    // clock to now", and `||` would silently turn that into 400 days ago —
+    // the exact opposite.
+    const days = Number.isFinite(Number(daysAgo)) ? Number(daysAgo) : 400;
+    const offsetMs = days * 24 * 60 * 60 * 1000;
 
     const user = await User.findOne({
       organizationId,

@@ -42,17 +42,18 @@ async function main() {
     const login1 = await (await post("/api/auth/login", { email, password: "password" })).json();
     check("login emailVerified false", login1.user && login1.user.emailVerified === false);
 
-    // 3. Unverified customer cannot claim a stamp
+    // 3. Unverified customer cannot earn points
     const genAdmin = await (await post("/api/admin-auth/login", { email: "durbarmarg@coffesarowar.com", password: "password" })).json();
     const gen = await fetch(`${baseUrl}/api/admin/generate-qr`, {
-      method: "POST", headers: { ...H, Authorization: `Bearer ${genAdmin.token}` }
+      method: "POST", headers: { ...H, Authorization: `Bearer ${genAdmin.token}` },
+      body: JSON.stringify({ billAmount: 300 })
     });
     const genBody = await gen.json();
-    const claimUnverified = await fetch(`${baseUrl}/api/stamps/claim`, {
+    const claimUnverified = await fetch(`${baseUrl}/api/points/claim`, {
       method: "POST", headers: { ...H, Authorization: `Bearer ${login1.token}` },
       body: JSON.stringify({ token: genBody.data.token })
     });
-    check("unverified claim -> 403", claimUnverified.status === 403);
+    check("unverified earn -> 403", claimUnverified.status === 403);
 
     // 4. Verify email via a minted token, then login shows verified
     const rawToken = await mint(email, "email_verify");
