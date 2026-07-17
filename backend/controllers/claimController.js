@@ -26,7 +26,9 @@ const status = async (req, res, next) => {
   try {
     const result = await getClaimStatus({
       pendingClaimId: req.params.pendingClaimId,
-      organizationId: req.organizationId
+      organizationId: req.organizationId,
+      // A query param, not a body: this is a GET the claim page polls.
+      claimSecret: req.query.secret
     });
     res.status(200).json(result);
   } catch (error) {
@@ -46,7 +48,8 @@ const fulfill = async (req, res, next) => {
     const result = await fulfillPendingClaim({
       pendingClaimId: req.params.pendingClaimId,
       organizationId: req.user.organizationId,
-      customerAccountId: user.customerAccountId.toString()
+      customerAccountId: user.customerAccountId.toString(),
+      claimSecret: req.body.claimSecret
     });
     res.status(200).json(result);
   } catch (error) {

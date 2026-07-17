@@ -9,9 +9,22 @@ const PendingClaimSchema = new mongoose.Schema({
   billAmount: { type: Number, default: null },
   generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   // The original DynamicQRToken.token (uuid) this was converted from. Kept
-  // for audit/idempotency (see pendingClaimService.convertTokenToPendingClaim)
-  // — irrelevant to authorization once this row exists.
+  // for audit/idempotency (see pendingClaimService.convertTokenToPendingClaim).
   sourceToken: { type: String, required: true },
+
+  // Proof that the caller is the person who actually scanned the QR.
+  //
+  // This exists because a PendingClaim's _id is NOT a secret: it is an
+  // ObjectId, which on real MongoDB carries a per-process counter that
+  // increments predictably, so anyone who starts one legitimate claim can
+  // guess the ids of others. Before this field, that guess was enough to
+  // bind someone else's pending earn to your own account, or to read what
+  // they earned. Possession of THIS is what authorizes binding — the id
+  // only addresses the row.
+  //
+  // Returned exactly once, to whoever consumed the 30s QR token, and never
+  // exposed by any read.
+  claimSecret: { type: String, required: true },
   // null until the customer identifies themselves (login/register/silent
   // global-session entry). Set exactly once.
   customerAccountId: { type: mongoose.Schema.Types.ObjectId, ref: "CustomerAccount", default: null },

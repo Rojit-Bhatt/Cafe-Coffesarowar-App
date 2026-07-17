@@ -78,11 +78,16 @@ async function main() {
     const startClaim = (slug, qrToken) =>
       api("/api/claim/start", { method: "POST", slug, body: { token: qrToken } });
 
-    const claimStatus = (slug, pendingClaimId) =>
-      api(`/api/claim/${pendingClaimId}/status`, { slug });
+    // claimSecret is returned by claim/start to whoever burned the QR token,
+    // and is required to bind or read the claim — the id alone is a guessable
+    // ObjectId and authorizes nothing.
+    const claimStatus = (slug, pendingClaimId, claimSecret) =>
+      api(`/api/claim/${pendingClaimId}/status?secret=${encodeURIComponent(claimSecret || "")}`, { slug });
 
-    const fulfillClaim = (tenantToken, pendingClaimId) =>
-      api(`/api/claim/${pendingClaimId}/fulfill`, { method: "POST", token: tenantToken });
+    const fulfillClaim = (tenantToken, pendingClaimId, claimSecret) =>
+      api(`/api/claim/${pendingClaimId}/fulfill`, {
+        method: "POST", token: tenantToken, body: { claimSecret },
+      });
 
     // --- Duplicate-email registration -> 409 ---
     const dupEmail = `dup-${runSuffix}@test.co`;
@@ -127,6 +132,7 @@ async function main() {
 
     const happyStart = await startClaim(SLUG_A, happyQrToken);
     const happyPendingClaimId = happyStart.body?.data?.pendingClaimId;
+    const happySecret = happyStart.body?.data?.claimSecret;
     check("happy-path claim/start -> pendingClaimId issued", Boolean(happyPendingClaimId));
 
     const happyEnterTenant = await api("/api/customer-auth/enter-tenant", {
@@ -140,14 +146,14 @@ async function main() {
     check("happy-path enter-tenant -> tenant JWT issued", Boolean(happyTenantToken));
     check("happy-path enter-tenant -> membership already verified", happyEnterTenant.body?.user?.emailVerified === true);
 
-    const happyFulfill = await fulfillClaim(happyTenantToken, happyPendingClaimId);
+    const happyFulfill = await fulfillClaim(happyTenantToken, happyPendingClaimId, happySecret);
     check("happy-path fulfill -> 200 (zero-form stamp award)", happyFulfill.status === 200);
     check("happy-path fulfill -> success true", happyFulfill.body?.success === true);
 
-    const happyStatusAfter = await claimStatus(SLUG_A, happyPendingClaimId);
+    const happyStatusAfter = await claimStatus(SLUG_A, happyPendingClaimId, happySecret);
     check("happy-path status after fulfill -> fulfilled true", happyStatusAfter.body?.data?.fulfilled === true);
 
-    const happyRefulfill = await fulfillClaim(happyTenantToken, happyPendingClaimId);
+    const happyRefulfill = await fulfillClaim(happyTenantToken, happyPendingClaimId, happySecret);
     check("re-fulfilling an already-used claim -> 400", happyRefulfill.status === 400);
 
     // --- Unverified-signup path: register with a pendingClaimId, stays
@@ -157,6 +163,7 @@ async function main() {
     const newQrToken = newQr.body?.data?.token;
     const newStart = await startClaim(SLUG_A, newQrToken);
     const newPendingClaimId = newStart.body?.data?.pendingClaimId;
+    const newSecret = newStart.body?.data?.claimSecret;
     check("new-signup path claim/start -> pendingClaimId issued", Boolean(newPendingClaimId));
 
     const newRegister = await api("/api/customer-auth/register", {
@@ -167,11 +174,12 @@ async function main() {
         password: "password123",
         phone: "9800000004",
         pendingClaimId: newPendingClaimId,
+        claimSecret: newSecret,
       },
     });
     check("new-signup register (with pendingClaimId) -> 201", newRegister.status === 201);
 
-    const newStatusBeforeVerify = await claimStatus(SLUG_A, newPendingClaimId);
+    const newStatusBeforeVerify = await claimStatus(SLUG_A, newPendingClaimId, newSecret);
     check("new-signup claim stays unfulfilled pre-verify", newStatusBeforeVerify.body?.data?.fulfilled === false);
 
     const newMint = await api("/__test__/mint-global-token", {
@@ -182,7 +190,7 @@ async function main() {
     check("new-signup verify-email -> 200", newVerify.status === 200);
     check("new-signup verify-email -> fulfilled array reports the claim", newVerify.body?.fulfilled?.length === 1);
 
-    const newStatusAfterVerify = await claimStatus(SLUG_A, newPendingClaimId);
+    const newStatusAfterVerify = await claimStatus(SLUG_A, newPendingClaimId, newSecret);
     check("new-signup claim auto-fulfilled after verify", newStatusAfterVerify.body?.data?.fulfilled === true);
 
     // --- Cross-tenant isolation: same CustomerAccount entering two tenants
@@ -202,12 +210,13 @@ async function main() {
     const bQrToken = bQr.body?.data?.token;
     const bStart = await startClaim(SLUG_B, bQrToken);
     const bPendingClaimId = bStart.body?.data?.pendingClaimId;
-    const bFulfill = await fulfillClaim(happyTenantBToken, bPendingClaimId);
+    const bSecret = bStart.body?.data?.claimSecret;
+    const bFulfill = await fulfillClaim(happyTenantBToken, bPendingClaimId, bSecret);
     check("points earned at tenant B via same global account -> 200", bFulfill.status === 200);
 
     // --- Tenant-A JWT presented against a tenant-B pending claim -> 404,
     // not a data leak (mirrors the codebase's hard tenant-JWT invariant). ---
-    const crossTenantFulfill = await fulfillClaim(happyTenantToken, bPendingClaimId);
+    const crossTenantFulfill = await fulfillClaim(happyTenantToken, bPendingClaimId, bSecret);
     check("tenant-A JWT against tenant-B pending claim -> 404", crossTenantFulfill.status === 404);
 
     // --- Reporting isolation: same account, earning at both tenants, shows

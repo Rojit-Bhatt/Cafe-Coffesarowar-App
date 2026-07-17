@@ -6,8 +6,8 @@ const {
 
 const register = async (req, res, next) => {
   try {
-    const { name, email, password, phone, pendingClaimId } = req.body;
-    const result = await registerAccount({ name, email, password, phone, pendingClaimId });
+    const { name, email, password, phone, pendingClaimId, claimSecret } = req.body;
+    const result = await registerAccount({ name, email, password, phone, pendingClaimId, claimSecret });
     res.status(201).json(result);
   } catch (error) {
     next(error);

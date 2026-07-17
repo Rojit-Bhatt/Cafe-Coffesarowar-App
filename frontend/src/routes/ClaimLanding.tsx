@@ -28,7 +28,10 @@ interface ClaimResult {
 // StrictMode-safe module-scope cache — same pattern as VerifyEmail.tsx /
 // GlobalVerifyEmail.tsx: converting the token to a pending claim is a
 // one-shot server call keyed by the QR's raw token.
-const startRequests = new Map<string, Promise<{ success: boolean; data: { pendingClaimId: string } }>>();
+const startRequests = new Map<
+  string,
+  Promise<{ success: boolean; data: { pendingClaimId: string; claimSecret: string } }>
+>();
 
 function startClaimOnce(token: string) {
   let promise = startRequests.get(token);
@@ -50,6 +53,10 @@ export default function ClaimLanding() {
   const [stage, setStage] = useState<Stage>("resolving");
   const [errorMsg, setErrorMsg] = useState("");
   const [pendingClaimId, setPendingClaimId] = useState<string | null>(null);
+  // Proof that WE are the tab that scanned the QR. The claim id alone is not
+  // proof — it's a guessable ObjectId — so every call that binds or reads the
+  // claim carries this. Kept in memory only; it never outlives the page.
+  const [claimSecret, setClaimSecret] = useState<string | null>(null);
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [busy, setBusy] = useState(false);
@@ -66,6 +73,7 @@ export default function ClaimLanding() {
     startClaimOnce(token)
       .then((res) => {
         setPendingClaimId(res.data.pendingClaimId);
+        setClaimSecret(res.data.claimSecret);
         setStage("checking");
       })
       .catch((e) => {
@@ -88,7 +96,7 @@ export default function ClaimLanding() {
     try {
       const res = await apiRequest<{ success: boolean; data: ClaimResult }>(
         `/api/claim/${claimId}/fulfill`,
-        { method: "POST" },
+        { method: "POST", body: { claimSecret } },
       );
       setResult(res.data);
       setStage("success");
@@ -116,7 +124,7 @@ export default function ClaimLanding() {
     const interval = setInterval(async () => {
       try {
         const res = await apiRequest<{ success: boolean; data: { fulfilled: boolean; expired: boolean } & Partial<ClaimResult> }>(
-          `/api/claim/${pendingClaimId}/status`,
+          `/api/claim/${pendingClaimId}/status?secret=${encodeURIComponent(claimSecret ?? "")}`,
         );
         if (res.data.fulfilled) {
           setResult({
@@ -136,7 +144,7 @@ export default function ClaimLanding() {
       }
     }, 4000);
     return () => clearInterval(interval);
-  }, [stage, pendingClaimId]);
+  }, [stage, pendingClaimId, claimSecret]);
 
   const onLogin = async (email: string, password: string) => {
     setBusy(true);
@@ -154,7 +162,11 @@ export default function ClaimLanding() {
   const onRegister = async (name: string, email: string, password: string, phone: string) => {
     setBusy(true);
     try {
-      await registerUser(name, email, password, phone, pendingClaimId ?? undefined);
+      await registerUser(
+        name, email, password, phone,
+        pendingClaimId ?? undefined,
+        claimSecret ?? undefined,
+      );
       setStage("awaiting-verification");
     } catch (e) {
       toast.error((e as Error).message || "Couldn't create your account — try again.");

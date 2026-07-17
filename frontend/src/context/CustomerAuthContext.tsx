@@ -37,6 +37,10 @@ interface CustomerAuthContextType {
     password: string,
     phone: string,
     pendingClaimId?: string,
+    // Proof the caller actually scanned the QR. Register is unauthenticated,
+    // so without this a pending claim could be bound by anyone who guessed
+    // its id — see pendingClaimService.linkPendingClaimToAccount.
+    claimSecret?: string,
   ) => Promise<void>;
   loginWithGoogle: (idToken: string) => Promise<{ needsPhone: boolean }>;
   completeProfile: (phone: string) => Promise<void>;
@@ -160,10 +164,11 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     password: string,
     phone: string,
     pendingClaimId?: string,
+    claimSecret?: string,
   ) => {
     const res = await apiRequest<{ success: boolean; message: string }>(
       "/api/customer-auth/register",
-      { method: "POST", body: { name, email, password, phone, pendingClaimId } },
+      { method: "POST", body: { name, email, password, phone, pendingClaimId, claimSecret } },
     );
     if (!res.success) {
       throw new Error(res.message || "Failed to register.");
