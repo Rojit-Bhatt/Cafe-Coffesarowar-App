@@ -3,7 +3,7 @@ const User = require("../models/User");
 const { getUpcomingForOrg } = require("../services/eventService");
 const { BUSINESS_CATEGORIES } = require("../config/platform");
 const { getSubscriptionSummary } = require("../services/subscriptionService");
-const { resolveProgram } = require("../services/programService");
+const { resolveProgram, getOverriddenFields } = require("../services/programService");
 const Company = require("../models/Company");
 
 const createHttpError = (message, statusCode) => {
@@ -30,10 +30,12 @@ const getPublicTenant = async (req, res, next) => {
         contact: organization.contact,
         upcomingEvents,
         menuEnabled: organization.menuEnabled,
+        // The resolved rate, not the outlet's raw (possibly null) override —
+        // this is public copy, so it has to be the number a customer would
+        // actually earn at.
         program: {
-          stampsRequired: program.stampsRequired,
-          rewardTitle: program.rewardTitle,
-          rewardDescription: program.rewardDescription
+          earnPercent: program.earnPercent,
+          pointsExpiryDays: program.pointsExpiryDays
         }
       }
     });
@@ -51,6 +53,7 @@ const getMySettings = async (req, res, next) => {
     }
 
     const adminUser = await User.findOne({ _id: req.user.id });
+    const company = await Company.findOne({ _id: organization.companyId });
 
     // Every outlet belongs to a company, so there's always a subscription to
     // check. The banner is informational only — an outlet admin can see that
@@ -72,7 +75,15 @@ const getMySettings = async (req, res, next) => {
         branding: organization.branding,
         contact: organization.contact,
         adminEmailVerified: adminUser ? adminUser.emailVerified : false,
+        // Three shapes, deliberately: `program` is this outlet's raw
+        // overrides (null = inherit), `programResolved` is what actually
+        // applies, and `programOverridden` names which fields the outlet has
+        // taken control of. The console needs all three to show "inherited
+        // from company" without guessing.
         program: organization.program,
+        programResolved: resolveProgram(company, organization),
+        programOverridden: getOverriddenFields(organization),
+        companyProgramDefaults: company ? company.programDefaults : null,
         menuEnabled: organization.menuEnabled,
         ...(subscriptionReminder ? { subscriptionReminder } : {})
       }
@@ -127,6 +138,8 @@ const updateMySettings = async (req, res, next) => {
 
     await organization.save();
 
+    const company = await Company.findOne({ _id: organization.companyId });
+
     res.status(200).json({
       success: true,
       settings: {
@@ -137,6 +150,9 @@ const updateMySettings = async (req, res, next) => {
         branding: organization.branding,
         contact: organization.contact,
         program: organization.program,
+        programResolved: resolveProgram(company, organization),
+        programOverridden: getOverriddenFields(organization),
+        companyProgramDefaults: company ? company.programDefaults : null,
         menuEnabled: organization.menuEnabled
       }
     });

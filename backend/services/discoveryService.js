@@ -1,24 +1,25 @@
 const Organization = require("../models/Organization");
 const Company = require("../models/Company");
 const { resolveProgram } = require("./programService");
-const StampClaimEvent = require("../models/StampClaimEvent");
+const PointsTransaction = require("../models/PointsTransaction");
 
 const TRENDING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Returns every active business with enough data for the customer-facing
-// /explore directory, plus a real "recentStampCount" trending signal. Search,
-// category filtering, and nearby/trending sorting all happen client-side over
-// this one payload — the in-memory mock DB used in dev/tests has no
-// aggregation or $regex support, and at this app's current scale a full scan
-// with a per-org count loop (mirroring stampService.getCustomerDetailRows) is
-// simpler and safe.
+// /explore directory, plus a real "recentActivityCount" trending signal —
+// how many points movements the outlet saw this week. Search, category
+// filtering, and nearby/trending sorting all happen client-side over this one
+// payload — the in-memory mock DB used in dev/tests has no aggregation or
+// $regex support, and at this app's current scale a full scan with a per-org
+// count loop (mirroring pointsService.getCustomerDetailRows) is simpler and
+// safe.
 const getDiscoverBusinesses = async () => {
   const organizations = await Organization.find({ status: "active" });
   const since = new Date(Date.now() - TRENDING_WINDOW_MS);
 
   const businesses = await Promise.all(
     organizations.map(async (org) => {
-      const recentStampCount = await StampClaimEvent.countDocuments({
+      const recentActivityCount = await PointsTransaction.countDocuments({
         organizationId: org._id,
         createdAt: { $gte: since }
       });
@@ -48,10 +49,10 @@ const getDiscoverBusinesses = async () => {
           longitude: org.contact.longitude
         },
         program: {
-          rewardTitle: program.rewardTitle
+          earnPercent: program.earnPercent
         },
         createdAt: org.createdAt,
-        recentStampCount
+        recentActivityCount
       };
     })
   );

@@ -3,9 +3,9 @@ const PendingClaim = require("../models/PendingClaim");
 const CustomerAccount = require("../models/CustomerAccount");
 const {
   consumeDynamicQrToken,
-  awardStampInTransaction,
+  awardPointsInTransaction,
   loadOrganizationOrThrow
-} = require("./stampService");
+} = require("./pointsService");
 const { ensureMembership } = require("./customerAccountService");
 
 const PENDING_CLAIM_TTL_MS = 15 * 60 * 1000;
@@ -30,7 +30,7 @@ const convertTokenToPendingClaim = async ({ token, organizationId }) => {
   try {
     let out;
     await session.withTransaction(async () => {
-      const consumedToken = await consumeDynamicQrToken({ token, organizationId, session });
+      const consumedToken = await consumeDynamicQrToken({ token, organizationId, session, purpose: "earn" });
       const [created] = await PendingClaim.create(
         [
           {
@@ -110,8 +110,8 @@ const fulfillPendingClaim = async ({ pendingClaimId, organizationId, customerAcc
   const membershipUser = await ensureMembership({ customerAccountId, organizationId, account });
   if (!membershipUser.emailVerified) {
     // Do NOT mark fulfilled — leave pending so the verify-email hook can
-    // complete it later. Same message claimStamp already uses for this case.
-    throw createHttpError("Please verify your email before collecting stamps.", 403);
+    // complete it later. Same message claimPoints uses for this case.
+    throw createHttpError("Please verify your email before collecting points.", 403);
   }
 
   const org = await loadOrganizationOrThrow(organizationId);
@@ -119,7 +119,7 @@ const fulfillPendingClaim = async ({ pendingClaimId, organizationId, customerAcc
   try {
     let responsePayload;
     await session.withTransaction(async () => {
-      responsePayload = await awardStampInTransaction({
+      responsePayload = await awardPointsInTransaction({
         session,
         userId: membershipUser._id.toString(),
         organizationId,

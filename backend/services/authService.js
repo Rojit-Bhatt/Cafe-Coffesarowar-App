@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
-const StampCard = require("../models/StampCard");
+const PointsBalance = require("../models/PointsBalance");
 const VerificationToken = require("../models/VerificationToken");
 const { generateAuthToken } = require("../utils/tokenUtils");
 const { sendEmail, buildAuthLink } = require("./emailService");
@@ -45,15 +45,19 @@ const createHttpError = (message, statusCode) => {
   return error;
 };
 
-const ensureUserStampCard = async (userId, organizationId) => {
-  await StampCard.findOneAndUpdate(
+// Gives a brand-new membership a zeroed balance row up front, so every
+// read path can assume the row exists. pointsService still upserts on earn —
+// a membership can predate this (or be created by another path), and an
+// award must never depend on someone having called this first.
+const ensureUserPointsBalance = async (userId, organizationId) => {
+  await PointsBalance.findOneAndUpdate(
     { userId, organizationId },
     {
       $setOnInsert: {
         userId,
         organizationId,
-        stampsEarned: 0,
-        lastStampedAt: null
+        balanceCenti: 0,
+        lastActivityAt: null
       }
     },
     { upsert: true, new: true }
@@ -109,7 +113,7 @@ const registerUser = async ({ name, email, password, phone, address, organizatio
     emailVerified: false
   });
 
-  await ensureUserStampCard(createdUser._id, organizationId);
+  await ensureUserPointsBalance(createdUser._id, organizationId);
   await sendVerifyEmail(createdUser, organizationId, slug);
 
   return { success: true, message: "Registered. Check your email to verify your account." };
@@ -229,7 +233,7 @@ const authenticateWithGoogle = async ({ idToken, organizationId }) => {
       emailVerified: true
     });
 
-    await ensureUserStampCard(user._id, organizationId);
+    await ensureUserPointsBalance(user._id, organizationId);
     const payloadOut = formatAuthPayload(user);
     payloadOut.needsPhone = !user.phone;
     return payloadOut;
@@ -255,7 +259,7 @@ const authenticateWithGoogle = async ({ idToken, organizationId }) => {
     await user.save();
   }
 
-  await ensureUserStampCard(user._id, organizationId);
+  await ensureUserPointsBalance(user._id, organizationId);
 
   const payloadOut = formatAuthPayload(user);
   payloadOut.needsPhone = !user.phone;
@@ -327,6 +331,6 @@ module.exports = {
   // Reused as-is by customerAccountService (global customer identity) — no
   // behavior change here, just making two already-existing functions
   // importable from outside this file.
-  ensureUserStampCard,
+  ensureUserPointsBalance,
   formatAuthPayload
 };

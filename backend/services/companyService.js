@@ -167,10 +167,7 @@ const createOutlet = async ({ companyId, name, slug, category, adminName, adminE
     branding: { tagline: "", logoUrl: "", bannerUrl: "", primaryColor: "#7c3f1d" },
     // All nulls — this outlet inherits the company's defaults until it
     // explicitly overrides a field. See programService.resolveProgram.
-    program: {
-      stampsRequired: null, rewardTitle: null, rewardDescription: null,
-      cooldownHours: null, minBillAmount: null, voucherExpiryDays: null
-    }
+    program: { earnPercent: null, pointsExpiryDays: null }
   });
 
   const adminAccount = await AdminAccount.create({

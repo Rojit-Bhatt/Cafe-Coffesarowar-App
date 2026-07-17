@@ -3,16 +3,23 @@
 const PLATFORM_NAME = process.env.PLATFORM_NAME || "Stampd";
 
 // Default loyalty program configuration applied to a brand-new tenant.
-// Individual businesses can override these from their admin console.
+// A company overrides these for all its outlets (Company.programDefaults);
+// an outlet overrides its company field-by-field (Organization.program).
+// programService.resolveProgram is the only place the three are collapsed.
+//
+// This object's KEYS are the schema: programService derives PROGRAM_FIELDS
+// from them, so adding a program field means adding it here first.
 const DEFAULT_PROGRAM = {
-  stampsRequired: 5,
-  rewardTitle: "Free Coffee",
-  rewardDescription: "Collect stamps on every visit and unlock a free coffee.",
-  cooldownHours: 18,
-  minBillAmount: 0,
-  // 0 = vouchers never expire. When set above 0, a voucher earned under
-  // this program gets an expiresAt of (earnedAt + this many days).
-  voucherExpiryDays: 0
+  // Percentage of the bill returned as points. 100 = 1 point per rupee.
+  // Below 100 is where fractional points come from: 10% of a Rs 105 bill is
+  // 10.5 points, which is exactly why points are stored as centipoints
+  // (see utils/pointsMath.js).
+  earnPercent: 100,
+  // 0 = points never expire. Above 0, a balance expires this many days after
+  // the customer's LAST activity — rolling inactivity, not a fixed date, so
+  // any earn or redeem restarts the clock. Derived lazily at read time; no
+  // cron job exists anywhere in this codebase.
+  pointsExpiryDays: 0
 };
 
 // The fixed set of business categories a tenant can be filed under, used for

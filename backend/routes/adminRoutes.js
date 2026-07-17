@@ -1,10 +1,10 @@
 const express = require("express");
 const {
   generateAdminQRToken,
-  getRecentScans,
+  generateAdminRedeemToken,
+  getTransactions,
   getCustomersList
-} = require("../controllers/stampController");
-const { redeemAdminVoucher } = require("../controllers/voucherController");
+} = require("../controllers/pointsController");
 const { getMySettings, updateMySettings } = require("../controllers/tenantController");
 const {
   listMenu,
@@ -21,17 +21,18 @@ const {
   getSummary,
   downloadSummary,
   downloadCustomers,
-  getVoucherPerformance,
-  downloadVoucherPerformance,
+  downloadTransactions,
 } = require("../controllers/reportController");
 const { listEvents, createEventController, updateEventController, deleteEventController } = require("../controllers/eventController");
 const { verifyToken, isBusinessAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// Both sides of the counter are staff-initiated: earn carries the bill,
+// redeem carries nothing and lets the customer pick after scanning.
 router.post("/generate-qr", verifyToken, isBusinessAdmin, generateAdminQRToken);
-router.post("/redeem-voucher", verifyToken, isBusinessAdmin, redeemAdminVoucher);
-router.get("/recent-scans", verifyToken, isBusinessAdmin, getRecentScans);
+router.post("/generate-redeem-qr", verifyToken, isBusinessAdmin, generateAdminRedeemToken);
+router.get("/transactions", verifyToken, isBusinessAdmin, getTransactions);
 router.get("/customers", verifyToken, isBusinessAdmin, getCustomersList);
 router.get("/settings", verifyToken, isBusinessAdmin, getMySettings);
 router.patch("/settings", verifyToken, isBusinessAdmin, updateMySettings);
@@ -46,8 +47,7 @@ router.get("/dashboard-stats", verifyToken, isBusinessAdmin, getDashboard);
 router.get("/reports/summary", verifyToken, isBusinessAdmin, getSummary);
 router.get("/reports/summary/download", verifyToken, isBusinessAdmin, downloadSummary);
 router.get("/reports/customers/download", verifyToken, isBusinessAdmin, downloadCustomers);
-router.get("/reports/vouchers", verifyToken, isBusinessAdmin, getVoucherPerformance);
-router.get("/reports/vouchers/download", verifyToken, isBusinessAdmin, downloadVoucherPerformance);
+router.get("/reports/transactions/download", verifyToken, isBusinessAdmin, downloadTransactions);
 router.get("/events", verifyToken, isBusinessAdmin, listEvents);
 router.post("/events", verifyToken, isBusinessAdmin, createEventController);
 router.patch("/events/:id", verifyToken, isBusinessAdmin, updateEventController);

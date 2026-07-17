@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 // assertCanAddOutlet. Expiry/grace/reminder are always DERIVED from
 // currentPeriodEnd at read time (subscriptionService.computeEffectiveStatus)
 // rather than a persisted "expired" status field that needs a cron job to
-// flip — the same lazy-expiry approach already used for Voucher.expiresAt,
+// flip — the same lazy-expiry approach already used for points balances,
 // necessary because the mock DB (and this app generally) has no scheduler.
 const SubscriptionSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },

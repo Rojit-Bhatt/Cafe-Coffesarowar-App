@@ -1,12 +1,18 @@
 const mongoose = require("mongoose");
 
-// Display-only menu item for a tenant. No cart/checkout/pricing logic —
-// this is purely a menu the business can choose to show its customers.
+// A menu item for a tenant. No cart or checkout — the menu is display-only
+// for browsing, with one exception: an item carrying a pointsPrice is also
+// redeemable against a points balance.
 const MenuItemSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: "Organization", required: true },
   name: { type: String, required: true, trim: true },
   description: { type: String, default: "", trim: true },
   price: { type: Number, default: null, min: 0 },
+
+  // What this item costs in INTEGER centipoints (utils/pointsMath.js).
+  // null = menu-only, not redeemable — the default, so adding points to an
+  // outlet never silently puts its whole menu up for redemption.
+  pointsPriceCenti: { type: Number, default: null, min: 0 },
   category: { type: String, default: "General", trim: true },
   isAvailable: { type: Boolean, default: true },
   isFeatured: { type: Boolean, default: false },

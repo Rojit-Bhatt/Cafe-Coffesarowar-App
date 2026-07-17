@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 // The single global identity for a customer, shared across every tenant they
 // interact with. Owns email/password/phone/name/emailVerified/googleId.
-// Per-tenant loyalty state (StampCard/Voucher/StampClaimEvent) stays on the
+// Per-tenant loyalty state (PointsBalance/PointsTransaction) stays on the
 // tenant-scoped User "membership" row — see User.customerAccountId.
 const CustomerAccountSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },

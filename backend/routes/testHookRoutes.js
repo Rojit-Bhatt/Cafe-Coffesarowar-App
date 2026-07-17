@@ -6,7 +6,7 @@ const CustomerAccount = require("../models/CustomerAccount");
 const AccountVerificationToken = require("../models/AccountVerificationToken");
 const AdminAccount = require("../models/AdminAccount");
 const AdminVerificationToken = require("../models/AdminVerificationToken");
-const Voucher = require("../models/Voucher");
+const PointsBalance = require("../models/PointsBalance");
 const Subscription = require("../models/Subscription");
 const { resolveTenant } = require("../middleware/tenantMiddleware");
 
@@ -84,21 +84,30 @@ router.post("/mint-admin-token", async (req, res, next) => {
   }
 });
 
-// DEV/TEST ONLY. Force a voucher's expiresAt into the past so a test can
-// deterministically exercise the "redeem an expired voucher" path without
-// waiting real days or faking the system clock.
-router.post("/expire-voucher", async (req, res, next) => {
+// DEV/TEST ONLY. Drag a points balance's lastActivityAt into the past so a
+// test can deterministically exercise rolling-inactivity expiry without
+// waiting real days or faking the system clock. Expiry is derived from
+// lastActivityAt, so moving it back IS aging the balance — nothing about the
+// production path is stubbed.
+router.post("/expire-points", async (req, res, next) => {
   try {
-    const { voucherCode } = req.body;
-    const normalizedCode = String(voucherCode || "").trim().toUpperCase();
+    const { email, organizationId, daysAgo } = req.body;
+    const offsetMs = (Number(daysAgo) || 400) * 24 * 60 * 60 * 1000;
 
-    const voucher = await Voucher.findOneAndUpdate(
-      { voucherCode: normalizedCode },
-      { $set: { expiresAt: new Date(Date.now() - 3600 * 1000) } },
+    const user = await User.findOne({
+      organizationId,
+      email: String(email || "").toLowerCase(),
+      role: "customer"
+    });
+    if (!user) return res.status(404).json({ success: false });
+
+    const balance = await PointsBalance.findOneAndUpdate(
+      { organizationId, userId: user._id },
+      { $set: { lastActivityAt: new Date(Date.now() - offsetMs) } },
       { new: true }
     );
 
-    if (!voucher) return res.status(404).json({ success: false });
+    if (!balance) return res.status(404).json({ success: false });
 
     res.json({ success: true });
   } catch (error) {
@@ -109,7 +118,7 @@ router.post("/expire-voucher", async (req, res, next) => {
 // DEV/TEST ONLY. Force a subscription's currentPeriodEnd into the past (by
 // `daysAgo`, default putting it just past the grace window) so a test can
 // deterministically exercise expiry/grace without waiting real days.
-// Mirrors /expire-voucher exactly.
+// Mirrors /expire-points exactly.
 router.post("/expire-subscription", async (req, res, next) => {
   try {
     const { companyId, daysAgo } = req.body;

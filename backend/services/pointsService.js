@@ -1,0 +1,560 @@
+const { v4: uuidv4 } = require("uuid");
+const mongoose = require("mongoose");
+const DynamicQRToken = require("../models/DynamicQRToken");
+const PointsBalance = require("../models/PointsBalance");
+const PointsTransaction = require("../models/PointsTransaction");
+const MenuItem = require("../models/MenuItem");
+const Organization = require("../models/Organization");
+const Company = require("../models/Company");
+const User = require("../models/User");
+const { resolveProgram } = require("./programService");
+const { earnCenti, toPoints } = require("../utils/pointsMath");
+
+const TOKEN_TTL_SECONDS = 30;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const createHttpError = (message, statusCode) => {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+};
+
+const loadOrganizationOrThrow = async (organizationId) => {
+  if (!organizationId) {
+    throw createHttpError("A business context is required.", 400);
+  }
+
+  const org = await Organization.findOne({ _id: organizationId });
+
+  if (!org) {
+    throw createHttpError("Business not found.", 404);
+  }
+
+  return org;
+};
+
+// An outlet's own program fields are null unless it explicitly overrides
+// them, so they must never be read straight off the document — resolve
+// against the owning company's defaults first.
+const loadProgram = async (org) => {
+  const company = org.companyId ? await Company.findOne({ _id: org.companyId }) : null;
+  return resolveProgram(company, org);
+};
+
+// A bill is required for every earn: the award is a function of it, so
+// without one there is nothing to award. Shared by token generation and the
+// award itself — staff is stopped at the QR, and the award re-checks rather
+// than trusting that it was.
+const parseBillAmountOrThrow = (billAmount) => {
+  if (billAmount === undefined || billAmount === null || billAmount === "") {
+    throw createHttpError("Enter the bill amount first — points are earned on what was paid.", 400);
+  }
+
+  const amount = Number(billAmount);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw createHttpError("That bill amount doesn't look right — enter what the customer paid.", 400);
+  }
+
+  // Money is two decimal places. Round once, here, so the figure stored on
+  // the token is the same one every downstream receipt and revenue report
+  // reads back.
+  return Math.round(amount * 100) / 100;
+};
+
+// --- expiry -----------------------------------------------------------
+//
+// Expiry is ROLLING INACTIVITY: a balance dies N days after the customer's
+// last earn or redeem, not on a fixed calendar date, so any activity keeps
+// the whole balance alive. It is always DERIVED here at read time and
+// materialized on the next write. There is no cron job.
+
+const isExpiredNow = (balance, program, now = new Date()) => {
+  const days = program.pointsExpiryDays;
+  if (!days || days <= 0) return false;          // 0 = never expires
+  if (!balance) return false;
+  if (balance.balanceCenti <= 0) return false;   // nothing to lose
+  if (!balance.lastActivityAt) return false;     // never active, never expires
+
+  return now.getTime() > new Date(balance.lastActivityAt).getTime() + days * DAY_MS;
+};
+
+// The balance a customer actually has right now, without writing anything.
+const effectiveBalanceCenti = (balance, program, now = new Date()) => {
+  if (!balance) return 0;
+  return isExpiredNow(balance, program, now) ? 0 : balance.balanceCenti;
+};
+
+// When the balance will expire if the customer does nothing. Null = never.
+const expiresAtFor = (balance, program) => {
+  const days = program.pointsExpiryDays;
+  if (!days || days <= 0) return null;
+  if (!balance || !balance.lastActivityAt || balance.balanceCenti <= 0) return null;
+  return new Date(new Date(balance.lastActivityAt).getTime() + days * DAY_MS);
+};
+
+// Writes down an expiry that has already happened: zeroes the row and logs
+// the loss to the ledger. Called before any balance mutation so that an earn
+// lands on a correctly-zeroed balance rather than topping up dead points.
+//
+// The balanceCenti equality guard makes this safe to race: if another writer
+// moved the balance between our read and this update, we lose the guard and
+// leave their state alone rather than clobbering it.
+const settleExpiryInTransaction = async ({ session, organizationId, userId, program, now }) => {
+  const balance = await PointsBalance.findOne({ organizationId, userId }).session(session);
+  if (!isExpiredNow(balance, program, now)) return balance;
+
+  const lostCenti = balance.balanceCenti;
+  const settled = await PointsBalance.findOneAndUpdate(
+    { _id: balance._id, balanceCenti: lostCenti },
+    { $set: { balanceCenti: 0, expiredAt: now } },
+    { new: true, session }
+  );
+
+  if (!settled) {
+    return PointsBalance.findOne({ organizationId, userId }).session(session);
+  }
+
+  await PointsTransaction.create(
+    [
+      {
+        organizationId,
+        userId,
+        type: "expire",
+        pointsCenti: -lostCenti,
+        balanceAfterCenti: 0,
+        createdAt: now
+      }
+    ],
+    { session }
+  );
+
+  return settled;
+};
+
+// --- token generation -------------------------------------------------
+
+const generateQRToken = async (adminUserId, organizationId, billAmount) => {
+  if (!adminUserId) {
+    throw createHttpError("Admin user context is required.", 401);
+  }
+
+  await loadOrganizationOrThrow(organizationId);
+  const storedBillAmount = parseBillAmountOrThrow(billAmount);
+
+  const token = uuidv4();
+  await DynamicQRToken.create({
+    token,
+    generatedBy: adminUserId,
+    organizationId,
+    purpose: "earn",
+    billAmount: storedBillAmount
+  });
+
+  return {
+    success: true,
+    data: { token, purpose: "earn", billAmount: storedBillAmount, expiresInSeconds: TOKEN_TTL_SECONDS }
+  };
+};
+
+// The redeem side of the counter. Staff-initiated for the same reason earn
+// is: a customer must never be able to move their own balance. Carries no
+// bill and no item — the customer picks the reward after scanning.
+const generateRedeemToken = async (adminUserId, organizationId) => {
+  if (!adminUserId) {
+    throw createHttpError("Admin user context is required.", 401);
+  }
+
+  await loadOrganizationOrThrow(organizationId);
+
+  const token = uuidv4();
+  await DynamicQRToken.create({
+    token,
+    generatedBy: adminUserId,
+    organizationId,
+    purpose: "redeem",
+    billAmount: null
+  });
+
+  return {
+    success: true,
+    data: { token, purpose: "redeem", expiresInSeconds: TOKEN_TTL_SECONDS }
+  };
+};
+
+// Validates + atomically single-use-consumes a DynamicQRToken. Shared by the
+// earn claim, the redeem flow, and pendingClaimService. Requires an open
+// session (caller manages the transaction).
+const consumeDynamicQrToken = async ({ token, organizationId, session, purpose = "earn" }) => {
+  const now = new Date();
+  const tokenExpiryCutoff = new Date(now.getTime() - TOKEN_TTL_SECONDS * 1000);
+
+  const usedToken = await DynamicQRToken.findOne({ token, isUsed: true }).session(session);
+  if (usedToken) {
+    throw createHttpError("QR Code has already been used.", 400);
+  }
+
+  const existingToken = await DynamicQRToken.findOne({ token }).session(session);
+  if (!existingToken) {
+    throw createHttpError("Invalid QR token.", 400);
+  }
+
+  if (existingToken.organizationId.toString() !== organizationId) {
+    throw createHttpError("Invalid QR token.", 400);
+  }
+
+  // An earn token must never be spendable as a redeem token, or vice versa —
+  // otherwise scanning the counter's earn QR on the redeem page would move a
+  // balance the wrong way.
+  if (existingToken.purpose !== purpose) {
+    throw createHttpError("Invalid QR token.", 400);
+  }
+
+  if (existingToken.createdAt <= tokenExpiryCutoff) {
+    throw createHttpError("This QR token has expired.", 400);
+  }
+
+  // Atomically consume: only the first claimer flips isUsed false -> true.
+  // The findOne above is racy on its own — two customers scanning the same
+  // 30s token could both pass it — so this conditional update is the
+  // authoritative single-use guard. It is also what serializes concurrent
+  // earns, which is why removing the old cooldown left no gap.
+  const consumed = await DynamicQRToken.updateOne(
+    { _id: existingToken._id, isUsed: false },
+    { $set: { isUsed: true } },
+    { session }
+  );
+  if (!consumed || consumed.modifiedCount === 0) {
+    throw createHttpError("QR Code has already been used.", 400);
+  }
+
+  return existingToken;
+};
+
+// --- earn -------------------------------------------------------------
+
+// The award core, keyed by whatever token string the caller wants recorded
+// on the ledger row (claimPoints passes the raw DynamicQRToken uuid;
+// pendingClaimService passes the PendingClaim's stored sourceToken).
+// Requires an open session (caller manages the transaction).
+//
+// There is no cooldown: every bill earns. The token's single-use guard
+// already stops the same scan being replayed, and two genuine bills in one
+// hour are two genuine earns.
+const awardPointsInTransaction = async ({ session, userId, organizationId, billAmount, org, now, token }) => {
+  const program = await loadProgram(org);
+  const amount = parseBillAmountOrThrow(billAmount);
+
+  // Multiplier is Phase C (campaigns); snapshotted from here so the ledger
+  // row's shape doesn't change when campaigns land.
+  const multiplier = 1;
+  const earnedCenti = earnCenti(amount, program.earnPercent, multiplier);
+
+  await settleExpiryInTransaction({ session, organizationId, userId, program, now });
+
+  const updated = await PointsBalance.findOneAndUpdate(
+    { userId, organizationId },
+    { $inc: { balanceCenti: earnedCenti }, $set: { lastActivityAt: now } },
+    { new: true, upsert: true, session }
+  );
+
+  await PointsTransaction.create(
+    [
+      {
+        organizationId,
+        userId,
+        type: "earn",
+        pointsCenti: earnedCenti,
+        balanceAfterCenti: updated.balanceCenti,
+        billAmount: amount,
+        earnPercent: program.earnPercent,
+        multiplier,
+        token,
+        createdAt: now
+      }
+    ],
+    { session }
+  );
+
+  return {
+    success: true,
+    message: `You earned ${toPoints(earnedCenti)} points.`,
+    data: {
+      pointsEarned: toPoints(earnedCenti),
+      billAmount: amount,
+      balance: toPoints(updated.balanceCenti),
+      earnPercent: program.earnPercent
+    }
+  };
+};
+
+const claimPoints = async ({ token, userId, role, organizationId }) => {
+  if (!token) {
+    throw createHttpError("QR token is required.", 400);
+  }
+
+  if (!userId) {
+    throw createHttpError("Authenticated user context is required.", 401);
+  }
+
+  if (role !== "customer") {
+    throw createHttpError("Only customers can earn points.", 403);
+  }
+
+  const claimer = await User.findOne({ _id: userId, organizationId });
+  if (!claimer) {
+    throw createHttpError("Account not found.", 404);
+  }
+  if (claimer.emailVerified === false) {
+    throw createHttpError("Please verify your email before collecting points.", 403);
+  }
+
+  const org = await loadOrganizationOrThrow(organizationId);
+
+  const session = await mongoose.startSession();
+
+  try {
+    let responsePayload;
+
+    await session.withTransaction(async () => {
+      const now = new Date();
+      const existingToken = await consumeDynamicQrToken({ token, organizationId, session, purpose: "earn" });
+      responsePayload = await awardPointsInTransaction({
+        session, userId, organizationId, billAmount: existingToken.billAmount, org, now, token
+      });
+    });
+
+    return responsePayload;
+  } finally {
+    session.endSession();
+  }
+};
+
+// --- redeem -----------------------------------------------------------
+
+// What this outlet will accept points for. Phase C adds standalone
+// RewardItems alongside these menu items.
+const getRedeemCatalog = async (organizationId) => {
+  const items = await MenuItem.find({ organizationId, isAvailable: true }).sort({ sortOrder: 1 });
+
+  return items
+    .filter((item) => item.pointsPriceCenti !== null && item.pointsPriceCenti !== undefined)
+    .map((item) => ({
+      id: item._id.toString(),
+      name: item.name,
+      description: item.description || "",
+      category: item.category,
+      pointsPrice: toPoints(item.pointsPriceCenti)
+    }));
+};
+
+const redeemPoints = async ({ token, itemId, userId, role, organizationId }) => {
+  if (!token) throw createHttpError("QR token is required.", 400);
+  if (!itemId) throw createHttpError("Pick something to redeem first.", 400);
+  if (!userId) throw createHttpError("Authenticated user context is required.", 401);
+  if (role !== "customer") throw createHttpError("Only customers can redeem points.", 403);
+
+  const org = await loadOrganizationOrThrow(organizationId);
+  const program = await loadProgram(org);
+
+  // Scoped by organizationId, so an itemId lifted from another outlet's menu
+  // simply doesn't exist here.
+  const item = await MenuItem.findOne({ _id: itemId, organizationId });
+  if (!item || item.pointsPriceCenti === null || item.pointsPriceCenti === undefined) {
+    throw createHttpError("That reward isn't available here.", 404);
+  }
+  if (!item.isAvailable) {
+    throw createHttpError("That reward is out of stock right now.", 400);
+  }
+
+  const priceCenti = item.pointsPriceCenti;
+  const session = await mongoose.startSession();
+
+  try {
+    let responsePayload;
+
+    await session.withTransaction(async () => {
+      const now = new Date();
+      await consumeDynamicQrToken({ token, organizationId, session, purpose: "redeem" });
+      await settleExpiryInTransaction({ session, organizationId, userId, program, now });
+
+      // The $gte guard IS the sufficient-funds check — checking the balance
+      // first and deducting after would let two concurrent redeems both pass
+      // the check. No match means not enough points, so the balance can never
+      // go negative.
+      const updated = await PointsBalance.findOneAndUpdate(
+        { userId, organizationId, balanceCenti: { $gte: priceCenti } },
+        { $inc: { balanceCenti: -priceCenti }, $set: { lastActivityAt: now } },
+        { new: true, session }
+      );
+
+      if (!updated) {
+        const current = await PointsBalance.findOne({ userId, organizationId }).session(session);
+        const have = toPoints(effectiveBalanceCenti(current, program, now));
+        throw createHttpError(
+          `Not enough points — ${item.name} costs ${toPoints(priceCenti)} and you have ${have}.`,
+          400
+        );
+      }
+
+      await PointsTransaction.create(
+        [
+          {
+            organizationId,
+            userId,
+            type: "redeem",
+            pointsCenti: -priceCenti,
+            balanceAfterCenti: updated.balanceCenti,
+            rewardRef: item._id,
+            rewardName: item.name,
+            token,
+            createdAt: now
+          }
+        ],
+        { session }
+      );
+
+      responsePayload = {
+        success: true,
+        message: `Enjoy your ${item.name}!`,
+        data: {
+          rewardName: item.name,
+          pointsSpent: toPoints(priceCenti),
+          balance: toPoints(updated.balanceCenti)
+        }
+      };
+    });
+
+    return responsePayload;
+  } finally {
+    session.endSession();
+  }
+};
+
+// --- reads ------------------------------------------------------------
+
+const getPointsBalanceByUserId = async (userId, organizationId) => {
+  if (!userId) {
+    throw createHttpError("Authenticated user context is required.", 401);
+  }
+
+  const org = await loadOrganizationOrThrow(organizationId);
+  const program = await loadProgram(org);
+
+  const balance = await PointsBalance.findOne({ userId, organizationId });
+  const now = new Date();
+
+  return {
+    success: true,
+    data: {
+      balance: toPoints(effectiveBalanceCenti(balance, program, now)),
+      lastActivityAt: balance ? balance.lastActivityAt : null,
+      expiresAt: expiresAtFor(balance, program),
+      earnPercent: program.earnPercent,
+      pointsExpiryDays: program.pointsExpiryDays
+    }
+  };
+};
+
+const formatTransaction = (txn) => ({
+  id: txn._id.toString(),
+  type: txn.type,
+  points: toPoints(txn.pointsCenti),
+  balanceAfter: toPoints(txn.balanceAfterCenti),
+  billAmount: txn.billAmount,
+  rewardName: txn.rewardName || "",
+  createdAt: txn.createdAt
+});
+
+const getPointsHistoryByUserId = async (userId, organizationId, limit = 50) => {
+  if (!userId) {
+    throw createHttpError("Authenticated user context is required.", 401);
+  }
+
+  const rows = await PointsTransaction.find({ userId, organizationId }).sort({ createdAt: -1 });
+  return { success: true, data: rows.slice(0, limit).map(formatTransaction) };
+};
+
+// The outlet's whole ledger, newest first — the admin transaction history.
+const getOutletTransactions = async (organizationId, { limit = 100 } = {}) => {
+  const rows = await PointsTransaction.find({ organizationId }).sort({ createdAt: -1 });
+  const capped = rows.slice(0, limit);
+
+  const userIds = [...new Set(capped.map((r) => r.userId.toString()))];
+  const users = await Promise.all(userIds.map((id) => User.findOne({ _id: id, organizationId })));
+  const nameById = new Map(users.filter(Boolean).map((u) => [u._id.toString(), u.name]));
+
+  return {
+    success: true,
+    data: capped.map((txn) => ({
+      ...formatTransaction(txn),
+      customerId: txn.userId.toString(),
+      customerName: nameById.get(txn.userId.toString()) || "Unknown"
+    }))
+  };
+};
+
+const getCustomerDetailRows = async (organizationId) => {
+  const org = await loadOrganizationOrThrow(organizationId);
+  const program = await loadProgram(org);
+  const now = new Date();
+
+  const customers = await User.find({ role: "customer", organizationId }).sort({ name: 1 });
+
+  const rows = await Promise.all(
+    customers.map(async (customer) => {
+      const balance = await PointsBalance.findOne({ userId: customer._id, organizationId });
+      const allTxns = await PointsTransaction.find({ userId: customer._id, organizationId })
+        .sort({ createdAt: -1 });
+
+      const earns = allTxns.filter((t) => t.type === "earn");
+      const redeems = allTxns.filter((t) => t.type === "redeem");
+
+      const totalSpent = earns.reduce((sum, t) => sum + (t.billAmount || 0), 0);
+      const lifetimePointsCenti = earns.reduce((sum, t) => sum + t.pointsCenti, 0);
+
+      const idStr = customer._id.toString();
+      const suffix = idStr.substring(Math.max(0, idStr.length - 5)).toUpperCase();
+      const formattedId = `NO. ${suffix.padStart(5, "0")}`;
+
+      return {
+        id: idStr,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone || "",
+        address: customer.address || "",
+        customerNo: formattedId,
+        pointsBalance: toPoints(effectiveBalanceCenti(balance, program, now)),
+        lifetimePoints: toPoints(lifetimePointsCenti),
+        lastActivityAt: balance ? balance.lastActivityAt : null,
+        redemptionCount: redeems.length,
+        totalSpent: Math.round(totalSpent * 100) / 100,
+        // Kept as "recent activity" for the customer-detail drawer.
+        history: allTxns.slice(0, 10).map(formatTransaction)
+      };
+    })
+  );
+
+  return rows;
+};
+
+module.exports = {
+  generateQRToken,
+  generateRedeemToken,
+  claimPoints,
+  redeemPoints,
+  getRedeemCatalog,
+  getPointsBalanceByUserId,
+  getPointsHistoryByUserId,
+  getOutletTransactions,
+  getCustomerDetailRows,
+  // Reused by pendingClaimService — same logic, no duplication.
+  consumeDynamicQrToken,
+  awardPointsInTransaction,
+  loadOrganizationOrThrow,
+  loadProgram,
+  // Exported for reports, which must apply the same lazy expiry on read.
+  isExpiredNow,
+  effectiveBalanceCenti,
+  expiresAtFor,
+  settleExpiryInTransaction
+};

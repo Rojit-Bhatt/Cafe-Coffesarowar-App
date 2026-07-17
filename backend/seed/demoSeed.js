@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { PLATFORM_NAME, DEFAULT_PROGRAM } = require("../config/platform");
+const { earnCenti, toCenti } = require("../utils/pointsMath");
 
 // Seeds the whole demo world: a platform admin, three companies with
 // differing outlet counts, per-outlet admin credentials, and customers —
@@ -51,8 +52,8 @@ const CUSTOMERS = [
     email: "asha@example.com",
     phone: "+9779800000001",
     memberships: [
-      { company: "coffesarowar", outlet: "durbarmarg", stamps: 3 },
-      { company: "coffesarowar", outlet: "patan", stamps: 1 }
+      { company: "coffesarowar", outlet: "durbarmarg", visits: 3 },
+      { company: "coffesarowar", outlet: "patan", visits: 1 }
     ]
   },
   {
@@ -60,16 +61,16 @@ const CUSTOMERS = [
     email: "bikash@example.com",
     phone: "+9779800000002",
     memberships: [
-      { company: "coffesarowar", outlet: "durbarmarg", stamps: 4 },
-      { company: "himalayan-bites", outlet: "lakeside", stamps: 2 },
-      { company: "sweet-corner", outlet: "main", stamps: 0 }
+      { company: "coffesarowar", outlet: "durbarmarg", visits: 4 },
+      { company: "himalayan-bites", outlet: "lakeside", visits: 2 },
+      { company: "sweet-corner", outlet: "main", visits: 0 }
     ]
   },
   {
     name: "Chandra Rai",
     email: "chandra@example.com",
     phone: "+9779800000003",
-    memberships: [{ company: "himalayan-bites", outlet: "durbarmarg", stamps: 2 }]
+    memberships: [{ company: "himalayan-bites", outlet: "durbarmarg", visits: 2 }]
   }
 ];
 
@@ -79,8 +80,8 @@ const seedDemoData = async () => {
   const Organization = require("../models/Organization");
   const AdminAccount = require("../models/AdminAccount");
   const CustomerAccount = require("../models/CustomerAccount");
-  const StampCard = require("../models/StampCard");
-  const StampClaimEvent = require("../models/StampClaimEvent");
+  const PointsBalance = require("../models/PointsBalance");
+  const PointsTransaction = require("../models/PointsTransaction");
   const Subscription = require("../models/Subscription");
   const MenuItem = require("../models/MenuItem");
   const { ensureDefaultPlansSeeded } = require("../services/subscriptionPlanService");
@@ -162,10 +163,7 @@ const seedDemoData = async () => {
               primaryColor: "#7c3f1d"
             },
             // All null — inherits the company's programDefaults.
-            program: {
-              stampsRequired: null, rewardTitle: null, rewardDescription: null,
-              cooldownHours: null, minBillAmount: null, voucherExpiryDays: null
-            },
+            program: { earnPercent: null, pointsExpiryDays: null },
             menuEnabled: true
           });
 
@@ -189,13 +187,26 @@ const seedDemoData = async () => {
             emailVerified: true
           });
 
+          // Two items on purpose: one redeemable, one menu-only, so the
+          // redeem catalog has something in it AND something it correctly
+          // leaves out on a cold boot.
           await MenuItem.create({
             organizationId: outlet._id,
             name: "House Coffee",
             description: "The daily pour.",
             price: 180,
             category: "Drinks",
+            pointsPriceCenti: toCenti(180),
             isFeatured: true
+          });
+
+          await MenuItem.create({
+            organizationId: outlet._id,
+            name: "Seasonal Special",
+            description: "Whatever the kitchen is proud of this week.",
+            price: 420,
+            category: "Food",
+            pointsPriceCenti: null
           });
 
           console.log(`[seed]   Outlet: /${def.slug}/${outletDef.slug} — admin ${outletDef.admin} / password`);
@@ -239,23 +250,41 @@ const seedDemoData = async () => {
             role: "customer",
             emailVerified: true
           });
-          await StampCard.create({
-            organizationId: outlet._id,
-            userId: membership._id,
-            stampsEarned: m.stamps,
-            lastStampedAt: m.stamps > 0 ? new Date(now.getTime() - 2 * DAY_MS) : null
-          });
-          // Backdated claim events so reports/velocity charts render
-          // something on a cold boot instead of an empty series.
-          for (let i = 0; i < m.stamps; i += 1) {
-            await StampClaimEvent.create({
+          // Backdated visits, each one a real bill and its earn row, so the
+          // ledger and the balance agree exactly the way the service would
+          // have left them. Reports and velocity charts then render real
+          // history on a cold boot instead of an empty series.
+          let balanceCenti = 0;
+          let lastActivityAt = null;
+
+          for (let i = 0; i < m.visits; i += 1) {
+            const billAmount = 250 + i * 50;
+            const earnedCenti = earnCenti(billAmount, DEFAULT_PROGRAM.earnPercent);
+            const createdAt = new Date(now.getTime() - (m.visits - i) * 2 * DAY_MS);
+
+            balanceCenti += earnedCenti;
+            lastActivityAt = createdAt;
+
+            await PointsTransaction.create({
               organizationId: outlet._id,
               userId: membership._id,
+              type: "earn",
+              pointsCenti: earnedCenti,
+              balanceAfterCenti: balanceCenti,
+              billAmount,
+              earnPercent: DEFAULT_PROGRAM.earnPercent,
+              multiplier: 1,
               token: `seed-${outlet._id}-${membership._id}-${i}`,
-              billAmount: 250 + i * 50,
-              createdAt: new Date(now.getTime() - (i + 1) * 2 * DAY_MS)
+              createdAt
             });
           }
+
+          await PointsBalance.create({
+            organizationId: outlet._id,
+            userId: membership._id,
+            balanceCenti,
+            lastActivityAt
+          });
         }
       }
     }

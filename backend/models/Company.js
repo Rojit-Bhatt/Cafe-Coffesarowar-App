@@ -31,12 +31,8 @@ const CompanySchema = new mongoose.Schema({
   // non-null — see programService.resolveProgram. Real values live here;
   // Organization.program's fields default to null meaning "inherit".
   programDefaults: {
-    stampsRequired: { type: Number, min: 1, default: DEFAULT_PROGRAM.stampsRequired },
-    rewardTitle: { type: String, default: DEFAULT_PROGRAM.rewardTitle },
-    rewardDescription: { type: String, default: DEFAULT_PROGRAM.rewardDescription },
-    cooldownHours: { type: Number, min: 0, default: DEFAULT_PROGRAM.cooldownHours },
-    minBillAmount: { type: Number, min: 0, default: DEFAULT_PROGRAM.minBillAmount },
-    voucherExpiryDays: { type: Number, min: 0, default: DEFAULT_PROGRAM.voucherExpiryDays }
+    earnPercent: { type: Number, min: 0, default: DEFAULT_PROGRAM.earnPercent },
+    pointsExpiryDays: { type: Number, min: 0, default: DEFAULT_PROGRAM.pointsExpiryDays }
   },
 
   status: { type: String, enum: ["active", "suspended"], default: "active" },

@@ -39,8 +39,7 @@ const { seedDemoData } = require("./seed/demoSeed");
 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
-const stampRoutes = require("./routes/stampRoutes");
-const voucherRoutes = require("./routes/voucherRoutes");
+const pointsRoutes = require("./routes/pointsRoutes");
 const reviewsRoutes = require("./routes/reviewsRoutes");
 const platformRoutes = require("./routes/platformRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
@@ -107,9 +106,8 @@ app.use("/api/admin-auth", adminAuthRoutes);
 app.use("/api/company", companyRoutes);
 // Business-admin console (QR, redemption, customers, settings, menu CRUD).
 app.use("/api/admin", adminRoutes);
-// Customer loyalty (stamps + vouchers), tenant taken from the JWT.
-app.use("/api/stamps", stampRoutes);
-app.use("/api/vouchers", voucherRoutes);
+// Customer loyalty (earn, redeem, balance, history), tenant from the JWT.
+app.use("/api/points", pointsRoutes);
 app.use("/api/reviews", reviewsRoutes);
 
 // Dev/test-only helper endpoints, mounted only against the in-memory mock DB

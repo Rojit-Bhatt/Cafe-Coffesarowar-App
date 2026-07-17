@@ -3,8 +3,8 @@ const Company = require("../models/Company");
 const Organization = require("../models/Organization");
 const AdminAccount = require("../models/AdminAccount");
 const User = require("../models/User");
-const StampClaimEvent = require("../models/StampClaimEvent");
-const Voucher = require("../models/Voucher");
+const PointsTransaction = require("../models/PointsTransaction");
+const { toPoints } = require("../utils/pointsMath");
 const { generateAuthToken } = require("../utils/tokenUtils");
 const { BUSINESS_CATEGORIES } = require("../config/platform");
 const { logAction } = require("./platformAuditService");
@@ -23,12 +23,12 @@ const buildOutletStats = async (outlet) => {
   const customersCount = (
     await User.find({ organizationId: outlet._id, role: "customer" })
   ).length;
-  const stampsIssued = (
-    await StampClaimEvent.find({ organizationId: outlet._id })
-  ).length;
-  const vouchersRedeemed = (
-    await Voucher.find({ organizationId: outlet._id, isValid: false })
-  ).length;
+  const txns = await PointsTransaction.find({ organizationId: outlet._id });
+
+  const pointsIssuedCenti = txns
+    .filter((t) => t.type === "earn")
+    .reduce((sum, t) => sum + t.pointsCenti, 0);
+  const redemptionCount = txns.filter((t) => t.type === "redeem").length;
 
   return {
     id: outlet._id.toString(),
@@ -39,8 +39,8 @@ const buildOutletStats = async (outlet) => {
     branding: outlet.branding,
     menuEnabled: outlet.menuEnabled,
     customersCount,
-    stampsIssued,
-    vouchersRedeemed
+    pointsIssued: toPoints(pointsIssuedCenti),
+    redemptionCount
   };
 };
 
@@ -54,10 +54,10 @@ const buildCompanyStats = async (company) => {
   const totals = outletRows.reduce(
     (acc, o) => ({
       customersCount: acc.customersCount + o.customersCount,
-      stampsIssued: acc.stampsIssued + o.stampsIssued,
-      vouchersRedeemed: acc.vouchersRedeemed + o.vouchersRedeemed
+      pointsIssued: acc.pointsIssued + o.pointsIssued,
+      redemptionCount: acc.redemptionCount + o.redemptionCount
     }),
-    { customersCount: 0, stampsIssued: 0, vouchersRedeemed: 0 }
+    { customersCount: 0, pointsIssued: 0, redemptionCount: 0 }
   );
 
   return {

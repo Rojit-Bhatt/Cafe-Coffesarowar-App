@@ -18,8 +18,8 @@ const createHttpError = (message, statusCode, code) => {
 // Pure — no DB access, no side effects. Expiry/grace are always DERIVED from
 // currentPeriodEnd rather than a persisted status flip (see Subscription.js's
 // comment) — this is the one function that computes what that means at any
-// given instant, exactly like Voucher's `expiresAt && expiresAt < now` check
-// inline in voucherService, just factored out since it's needed in more
+// given instant, the same derive-on-read approach points expiry uses,
+// just factored out since it's needed in more
 // places here (gating, the reminder banner, the platform admin view).
 const computeEffectiveStatus = (subscription, now = new Date()) => {
   if (!subscription) return "none";

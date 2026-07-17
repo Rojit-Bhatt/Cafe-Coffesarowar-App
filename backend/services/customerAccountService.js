@@ -6,9 +6,10 @@ const AccountVerificationToken = require("../models/AccountVerificationToken");
 const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Company = require("../models/Company");
-const StampCard = require("../models/StampCard");
-const Voucher = require("../models/Voucher");
-const { ensureUserStampCard, formatAuthPayload } = require("./authService");
+const PointsBalance = require("../models/PointsBalance");
+const { ensureUserPointsBalance, formatAuthPayload } = require("./authService");
+const { effectiveBalanceCenti, expiresAtFor } = require("./pointsService");
+const { toPoints } = require("../utils/pointsMath");
 const { generateGlobalSessionToken } = require("../utils/tokenUtils");
 const { resolveProgram } = require("./programService");
 const { sendEmail } = require("./emailService");
@@ -89,7 +90,7 @@ const ensureMembership = async ({ customerAccountId, organizationId, account }) 
       emailVerified: account.emailVerified
     });
 
-    await ensureUserStampCard(user._id, organizationId);
+    await ensureUserPointsBalance(user._id, organizationId);
     return user;
   }
 
@@ -357,13 +358,16 @@ const enterTenant = async ({ customerAccountId, organizationId }) => {
   return formatAuthPayload(membershipUser);
 };
 
-// Every business this CustomerAccount already has a membership at, with
-// real per-tenant stamp/voucher progress — powers the "My Businesses" tab.
+// Every business this CustomerAccount already has a membership at, with its
+// real per-outlet points balance — powers the "My Businesses" tab. Balances
+// are per-outlet and never pool, so this is a list of separate balances, not
+// a total.
 // User.find({customerAccountId}) has no organizationId filter, same
 // cross-tenant lookup pattern already used by completeProfile/
 // verifyAccountEmail above.
 const getMyTenants = async ({ customerAccountId }) => {
   const memberships = await User.find({ customerAccountId, role: "customer" });
+  const now = new Date();
 
   const rows = await Promise.all(
     memberships.map(async (membership) => {
@@ -372,17 +376,10 @@ const getMyTenants = async ({ customerAccountId }) => {
       const company = await Company.findOne({ _id: org.companyId });
       const program = resolveProgram(company, org);
 
-      const stampCard = await StampCard.findOne({
+      const balance = await PointsBalance.findOne({
         userId: membership._id,
         organizationId: membership.organizationId
       });
-      const validVoucherCount = (
-        await Voucher.find({
-          userId: membership._id,
-          organizationId: membership.organizationId,
-          isValid: true
-        })
-      ).length;
 
       return {
         organizationId: org._id.toString(),
@@ -395,11 +392,12 @@ const getMyTenants = async ({ customerAccountId }) => {
           bannerUrl: org.branding.bannerUrl,
           primaryColor: org.branding.primaryColor
         },
-        stampsEarned: stampCard ? stampCard.stampsEarned : 0,
-        stampsRequired: program.stampsRequired,
-        rewardTitle: program.rewardTitle,
-        validVoucherCount,
-        lastStampedAt: stampCard ? stampCard.lastStampedAt : null
+        // Same lazy expiry the outlet's own dashboard applies, so a balance
+        // never reads as alive here and dead there.
+        balance: toPoints(effectiveBalanceCenti(balance, program, now)),
+        earnPercent: program.earnPercent,
+        expiresAt: expiresAtFor(balance, program),
+        lastActivityAt: balance ? balance.lastActivityAt : null
       };
     })
   );

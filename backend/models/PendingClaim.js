@@ -18,7 +18,7 @@ const PendingClaimSchema = new mongoose.Schema({
   fulfilled: { type: Boolean, default: false },
   fulfilledAt: { type: Date, default: null },
   // Stores the same `data` payload claimStamp would have returned
-  // ({stampsEarned, rewardTriggered, voucherCode?, rewardTitle?}), so
+  // ({pointsEarned, billAmount, balance}), so
   // GET /api/claim/:id/status can answer polling requests from a tab that
   // isn't authenticated (the "different tab/device" verify-email case).
   result: { type: mongoose.Schema.Types.Mixed, default: null },

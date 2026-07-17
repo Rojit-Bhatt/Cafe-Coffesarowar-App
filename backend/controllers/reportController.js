@@ -1,10 +1,9 @@
 const {
   getSummaryStats,
   getDashboardStats,
-  getVoucherPerformanceStats,
   buildSummaryWorkbook,
   buildCustomersWorkbook,
-  buildVoucherPerformanceWorkbook,
+  buildTransactionsWorkbook,
 } = require("../services/reportService");
 
 const getDashboard = async (req, res, next) => {
@@ -54,27 +53,11 @@ const downloadCustomers = async (req, res, next) => {
   }
 };
 
-const getVoucherPerformance = async (req, res, next) => {
+const downloadTransactions = async (req, res, next) => {
   try {
-    const stats = await getVoucherPerformanceStats(req.user.organizationId, {
-      startDate: req.query.startDate,
-      endDate: req.query.endDate,
-    });
-    res.status(200).json({ success: true, ...stats });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const downloadVoucherPerformance = async (req, res, next) => {
-  try {
-    const stats = await getVoucherPerformanceStats(req.user.organizationId, {
-      startDate: req.query.startDate,
-      endDate: req.query.endDate,
-    });
-    const buffer = await buildVoucherPerformanceWorkbook(stats);
+    const buffer = await buildTransactionsWorkbook(req.user.organizationId);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", "attachment; filename=\"voucher-performance-report.xlsx\"");
+    res.setHeader("Content-Disposition", "attachment; filename=\"transactions-report.xlsx\"");
     res.send(buffer);
   } catch (error) {
     next(error);
@@ -86,6 +69,5 @@ module.exports = {
   getSummary,
   downloadSummary,
   downloadCustomers,
-  getVoucherPerformance,
-  downloadVoucherPerformance,
+  downloadTransactions,
 };

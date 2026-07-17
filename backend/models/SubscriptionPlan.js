@@ -9,7 +9,7 @@ const SubscriptionPlanSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   // Whole Nepalese Rupees — plain number, never currency-formatted here (see
   // frontend lib/subscription.ts's formatNpr, same convention as
-  // Organization.program.minBillAmount).
+  // Organization.program).
   priceNpr: { type: Number, required: true, min: 0 },
   // How many outlets a company on this plan may run.
   outletLimit: { type: Number, required: true, min: 1 },

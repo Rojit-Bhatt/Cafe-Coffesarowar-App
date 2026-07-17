@@ -2,9 +2,11 @@ const mongoose = require("mongoose");
 const { BUSINESS_CATEGORIES } = require("../config/platform");
 
 // A tenant — one outlet (cafe/branch) belonging to a Company. All loyalty
-// data (users, cards, vouchers, tokens, menu) is scoped to an
+// data (users, points balances, transactions, tokens, menu) is scoped to an
 // organizationId so outlets are fully isolated from one another, including
-// outlets of the SAME company: they share an owner and nothing else.
+// outlets of the SAME company: they share an owner and nothing else. Points
+// never pool across outlets — a balance is earned at one counter and spent
+// at that same counter.
 const OrganizationSchema = new mongoose.Schema({
   // The company this outlet belongs to. Every outlet has one — the platform
   // registers companies, and companies register their own outlets.
@@ -38,14 +40,10 @@ const OrganizationSchema = new mongoose.Schema({
   // every field always-populated and inheritance could never fire — there'd
   // be no way to tell "unset" from "explicitly set to the default value".
   // Resolution must use `??`, never `||`: 0 is a legitimate value for
-  // minBillAmount/voucherExpiryDays and must not fall through to the parent.
+  // pointsExpiryDays ("never expires") and must not fall through to the parent.
   program: {
-    stampsRequired: { type: Number, min: 1, default: null },
-    rewardTitle: { type: String, default: null },
-    rewardDescription: { type: String, default: null },
-    cooldownHours: { type: Number, min: 0, default: null },
-    minBillAmount: { type: Number, min: 0, default: null },
-    voucherExpiryDays: { type: Number, min: 0, default: null }
+    earnPercent: { type: Number, min: 0, default: null },
+    pointsExpiryDays: { type: Number, min: 0, default: null }
   },
 
   // Contact/location/social info the business admin controls, shown to
