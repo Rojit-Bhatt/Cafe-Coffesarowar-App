@@ -5,9 +5,8 @@ const PointsTransaction = require("../models/PointsTransaction");
 const {
   getCustomerDetailRows,
   getOutletTransactions,
-  loadOrganizationOrThrow,
-  loadProgram,
-  effectiveBalanceCenti
+  effectiveBalanceCenti,
+  isExpiredNow
 } = require("./pointsService");
 const { toPoints } = require("../utils/pointsMath");
 
@@ -39,17 +38,48 @@ const sumRevenue = (txns) => txns.reduce((sum, t) => sum + (t.billAmount || 0), 
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // Points currently sitting in customers' balances at this outlet — a
-// liability snapshot, not a flow. Applies the same lazy rolling-inactivity
-// expiry a customer would see on their own dashboard, so a balance that has
-// aged out is never counted as outstanding just because nobody has touched
-// the row since.
+// liability snapshot, not a flow. Applies the same lazy expiry a customer
+// would see on their own dashboard, so a balance that has aged out is never
+// counted as outstanding just because nobody has touched the row since.
 const getPointsOutstandingCenti = async (organizationId) => {
-  const org = await loadOrganizationOrThrow(organizationId);
-  const program = await loadProgram(org);
+  const now = new Date();
+  const balances = await PointsBalance.find({ organizationId });
+  return balances.reduce((sum, b) => sum + effectiveBalanceCenti(b, now), 0);
+};
+
+// Points that have expired within [start, end] — INCLUDING ones that have
+// aged out but not yet been materialized onto a ledger row.
+//
+// Counting only materialized `expire` rows is what broke reconciliation:
+// `pointsOutstanding` already excludes an aged-out balance (it's derived),
+// but `pointsExpired` wouldn't mention it until the customer happened to
+// come back — so issued − redeemed − expired ≠ outstanding, and the gap grew
+// with every churned customer, who by definition never comes back.
+//
+// No double-count: settleExpiryInTransaction dates its ledger row at the
+// balance's `expiresAt` (the real moment of death) and clears the deadline,
+// so a given expiry lands in exactly one period whether it's been written
+// down yet or not.
+const getPointsExpiredCenti = async (organizationId, start, end) => {
   const now = new Date();
 
+  const materialized = await PointsTransaction.find({
+    organizationId,
+    createdAt: { $gte: start, $lte: end }
+  });
+  const materializedCenti = materialized
+    .filter((t) => t.type === "expire")
+    .reduce((sum, t) => sum - t.pointsCenti, 0);
+
   const balances = await PointsBalance.find({ organizationId });
-  return balances.reduce((sum, b) => sum + effectiveBalanceCenti(b, program, now), 0);
+  const pendingCenti = balances.reduce((sum, b) => {
+    if (!isExpiredNow(b, now)) return sum;
+    const diedAt = new Date(b.expiresAt).getTime();
+    if (diedAt < start.getTime() || diedAt > end.getTime()) return sum;
+    return sum + b.balanceCenti;
+  }, 0);
+
+  return materializedCenti + pendingCenti;
 };
 
 const getSummaryStats = async (organizationId, { startDate, endDate } = {}) => {
@@ -65,7 +95,6 @@ const getSummaryStats = async (organizationId, { startDate, endDate } = {}) => {
   const txns = await PointsTransaction.find({ organizationId, createdAt: range });
   const earns = txns.filter((t) => t.type === "earn");
   const redeems = txns.filter((t) => t.type === "redeem");
-  const expiries = txns.filter((t) => t.type === "expire");
 
   return {
     newCustomers,
@@ -74,7 +103,7 @@ const getSummaryStats = async (organizationId, { startDate, endDate } = {}) => {
     // Stored signed (negative); reported as a positive magnitude, since
     // "points redeemed: -400" reads as a bug to everyone but the ledger.
     pointsRedeemed: toPoints(-sumCenti(redeems)),
-    pointsExpired: toPoints(-sumCenti(expiries)),
+    pointsExpired: toPoints(await getPointsExpiredCenti(organizationId, start, end)),
     pointsOutstanding: toPoints(await getPointsOutstandingCenti(organizationId)),
     totalRevenue: round2(sumRevenue(earns)),
     startDate: start.toISOString().slice(0, 10),
@@ -252,6 +281,7 @@ module.exports = {
   getSummaryStats,
   getDashboardStats,
   getPointsOutstandingCenti,
+  getPointsExpiredCenti,
   buildSummaryWorkbook,
   buildCustomersWorkbook,
   buildTransactionsWorkbook

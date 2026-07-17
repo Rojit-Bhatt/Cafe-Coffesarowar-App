@@ -84,11 +84,15 @@ router.post("/mint-admin-token", async (req, res, next) => {
   }
 });
 
-// DEV/TEST ONLY. Drag a points balance's lastActivityAt into the past so a
-// test can deterministically exercise rolling-inactivity expiry without
-// waiting real days or faking the system clock. Expiry is derived from
-// lastActivityAt, so moving it back IS aging the balance — nothing about the
-// production path is stubbed.
+// DEV/TEST ONLY. Age a points balance by `daysAgo` so a test can exercise
+// expiry without waiting real days or faking the system clock.
+//
+// Moves BOTH the last activity and the stored deadline back by the same
+// amount — which is exactly what the passage of time would have done. The
+// deadline is what `isExpiredNow` actually reads, so a hook that only moved
+// lastActivityAt would age a field the code no longer consults and prove
+// nothing. Nothing on the production path is stubbed: the row ends up in the
+// state a genuinely idle customer's row would be in.
 router.post("/expire-points", async (req, res, next) => {
   try {
     const { email, organizationId, daysAgo } = req.body;
@@ -105,15 +109,25 @@ router.post("/expire-points", async (req, res, next) => {
     });
     if (!user) return res.status(404).json({ success: false });
 
+    const existing = await PointsBalance.findOne({ organizationId, userId: user._id });
+    if (!existing) return res.status(404).json({ success: false });
+
+    const shift = (d) => (d ? new Date(new Date(d).getTime() - offsetMs) : d);
+
     const balance = await PointsBalance.findOneAndUpdate(
       { organizationId, userId: user._id },
-      { $set: { lastActivityAt: new Date(Date.now() - offsetMs) } },
+      {
+        $set: {
+          lastActivityAt: new Date(Date.now() - offsetMs),
+          expiresAt: shift(existing.expiresAt)
+        }
+      },
       { new: true }
     );
 
     if (!balance) return res.status(404).json({ success: false });
 
-    res.json({ success: true });
+    res.json({ success: true, expiresAt: balance.expiresAt });
   } catch (error) {
     next(error);
   }

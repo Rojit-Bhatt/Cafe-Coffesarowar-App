@@ -129,13 +129,89 @@ async function main() {
     check("and it stays at 0, not negative", spendBal.body?.data?.balance === 0, spendBal.body);
 
     console.log("\n== Reports apply the same expiry ==");
-    // A balance that has aged out must not count as an outstanding liability
-    // just because nobody has touched the row.
-    const dashboard = await api("/api/admin/dashboard-stats", { token: adminToken });
+    // This check used to assert only `typeof value === "number"`, which would
+    // have passed if outstanding included every expired balance or were
+    // hardcoded to 0 — the one assertion that should have caught the
+    // reconciliation gap below, and it caught nothing. Assert the delta.
+    const ghost = await makeCustomer("ghost");
+    const before = (await api("/api/admin/dashboard-stats", { token: adminToken })).body.pointsOutstanding.value;
+    await earn(ghost.token, 1000);
+    const withGhost = (await api("/api/admin/dashboard-stats", { token: adminToken })).body.pointsOutstanding.value;
+    check("a fresh 1000-point balance shows as outstanding", withGhost === before + 1000, { before, withGhost });
+
+    await age(ghost, 40);
+    const afterGhostExpired = (await api("/api/admin/dashboard-stats", { token: adminToken })).body.pointsOutstanding.value;
     check(
-      "outstanding points exclude expired balances",
-      typeof dashboard.body?.pointsOutstanding?.value === "number",
-      dashboard.body?.pointsOutstanding,
+      "outstanding drops by exactly the expired 1000",
+      afterGhostExpired === withGhost - 1000,
+      { withGhost, afterGhostExpired },
+    );
+
+    console.log("\n== The summary report reconciles ==");
+    // issued - redeemed - expired must equal outstanding. It didn't: expired
+    // counted only MATERIALIZED ledger rows, while outstanding was derived,
+    // so a customer who aged out and never came back left a gap that grew
+    // forever. `ghost` above is exactly that customer.
+    const summary = await api(
+      `/api/admin/reports/summary?startDate=2000-01-01&endDate=2100-01-01`,
+      { token: adminToken },
+    );
+    const { pointsIssued, pointsRedeemed, pointsExpired, pointsOutstanding } = summary.body;
+    check(
+      "expired counts the aged-out-but-unmaterialized balance",
+      pointsExpired >= 1000,
+      { pointsIssued, pointsRedeemed, pointsExpired, pointsOutstanding },
+    );
+    check(
+      "issued - redeemed - expired === outstanding",
+      Math.abs(pointsIssued - pointsRedeemed - pointsExpired - pointsOutstanding) < 0.001,
+      {
+        pointsIssued, pointsRedeemed, pointsExpired, pointsOutstanding,
+        gap: pointsIssued - pointsRedeemed - pointsExpired - pointsOutstanding,
+      },
+    );
+
+    console.log("\n== A policy change does NOT rewrite history ==");
+    // Both directions used to be live, because expiry was re-derived from the
+    // program on every read.
+    const frozen = await makeCustomer("frozen");
+    await earn(frozen.token, 500);
+    await age(frozen, 40);
+    check(
+      "the balance is expired under the 30-day window",
+      (await api("/api/points/balance", { token: frozen.token })).body.data.balance === 0,
+    );
+
+    // Loosening the policy must not RESURRECT points the customer was already
+    // told were gone (and must certainly not make them spendable again).
+    await api("/api/admin/settings", { method: "PATCH", token: adminToken, body: { program: { pointsExpiryDays: 0 } } });
+    const afterLoosen = await api("/api/points/balance", { token: frozen.token });
+    check(
+      "turning expiry OFF does not resurrect an expired balance",
+      afterLoosen.body.data.balance === 0,
+      afterLoosen.body.data,
+    );
+
+    // Tightening must not VAPORIZE an idle balance that was alive under the
+    // window it was actually given.
+    const settled = await makeCustomer("settled");
+    await earn(settled.token, 700);           // stamped with "never expires"
+    await age(settled, 45);
+    await api("/api/admin/settings", { method: "PATCH", token: adminToken, body: { program: { pointsExpiryDays: 30 } } });
+    const afterTighten = await api("/api/points/balance", { token: settled.token });
+    check(
+      "tightening the window does not vaporize an existing balance",
+      afterTighten.body.data.balance === 700,
+      afterTighten.body.data,
+    );
+
+    // ...but the NEXT visit adopts the new window.
+    await earn(settled.token, 1);
+    const restamped = await api("/api/points/balance", { token: settled.token });
+    check(
+      "the next visit adopts the new window",
+      typeof restamped.body.data.expiresAt === "string",
+      restamped.body.data,
     );
 
     await api("/api/admin/settings", { method: "PATCH", token: adminToken, body: { program: { pointsExpiryDays: 0 } } });

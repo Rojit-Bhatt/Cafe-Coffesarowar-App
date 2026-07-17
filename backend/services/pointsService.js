@@ -66,32 +66,48 @@ const parseBillAmountOrThrow = (billAmount) => {
 // --- expiry -----------------------------------------------------------
 //
 // Expiry is ROLLING INACTIVITY: a balance dies N days after the customer's
-// last earn or redeem, not on a fixed calendar date, so any activity keeps
-// the whole balance alive. It is always DERIVED here at read time and
-// materialized on the next write. There is no cron job.
+// last earn or redeem, so any activity keeps the whole balance alive.
+//
+// The deadline is SNAPSHOTTED onto the row at every write (see expiryAtFrom)
+// and read back from there — never re-derived from the live program. That
+// distinction is the whole design:
+//
+//   derived  — an admin lowering pointsExpiryDays instantly vaporizes every
+//              idle balance with no ledger row and no notice, and raising it
+//              resurrects points customers were already told were gone, fully
+//              spendable. "Expired" would never be final.
+//   snapshot — the window in force at the customer's last visit governs. A
+//              policy change applies to future visits only.
+//
+// Still no cron: the deadline is a stored date, compared at read time, and
+// written down (zeroed + logged) on the next write.
 
-const isExpiredNow = (balance, program, now = new Date()) => {
+// The deadline a write should stamp on the row, from the program in force
+// right now. Null = this program never expires points.
+const expiryAtFrom = (program, now) => {
   const days = program.pointsExpiryDays;
-  if (!days || days <= 0) return false;          // 0 = never expires
+  if (!days || days <= 0) return null;
+  return new Date(now.getTime() + days * DAY_MS);
+};
+
+const isExpiredNow = (balance, now = new Date()) => {
   if (!balance) return false;
   if (balance.balanceCenti <= 0) return false;   // nothing to lose
-  if (!balance.lastActivityAt) return false;     // never active, never expires
+  if (!balance.expiresAt) return false;          // no deadline = never expires
 
-  return now.getTime() > new Date(balance.lastActivityAt).getTime() + days * DAY_MS;
+  return now.getTime() > new Date(balance.expiresAt).getTime();
 };
 
 // The balance a customer actually has right now, without writing anything.
-const effectiveBalanceCenti = (balance, program, now = new Date()) => {
+const effectiveBalanceCenti = (balance, now = new Date()) => {
   if (!balance) return 0;
-  return isExpiredNow(balance, program, now) ? 0 : balance.balanceCenti;
+  return isExpiredNow(balance, now) ? 0 : balance.balanceCenti;
 };
 
-// When the balance will expire if the customer does nothing. Null = never.
-const expiresAtFor = (balance, program) => {
-  const days = program.pointsExpiryDays;
-  if (!days || days <= 0) return null;
-  if (!balance || !balance.lastActivityAt || balance.balanceCenti <= 0) return null;
-  return new Date(new Date(balance.lastActivityAt).getTime() + days * DAY_MS);
+// When the balance dies if the customer does nothing. Null = never.
+const expiresAtFor = (balance) => {
+  if (!balance || balance.balanceCenti <= 0) return null;
+  return balance.expiresAt || null;
 };
 
 // Writes down an expiry that has already happened: zeroes the row and logs
@@ -101,14 +117,19 @@ const expiresAtFor = (balance, program) => {
 // The balanceCenti equality guard makes this safe to race: if another writer
 // moved the balance between our read and this update, we lose the guard and
 // leave their state alone rather than clobbering it.
-const settleExpiryInTransaction = async ({ session, organizationId, userId, program, now }) => {
+const settleExpiryInTransaction = async ({ session, organizationId, userId, now }) => {
   const balance = await PointsBalance.findOne({ organizationId, userId }).session(session);
-  if (!isExpiredNow(balance, program, now)) return balance;
+  if (!isExpiredNow(balance, now)) return balance;
 
   const lostCenti = balance.balanceCenti;
+  // The instant the points actually died, which may be long before we noticed.
+  const diedAt = new Date(balance.expiresAt);
+
   const settled = await PointsBalance.findOneAndUpdate(
     { _id: balance._id, balanceCenti: lostCenti },
-    { $set: { balanceCenti: 0, expiredAt: now } },
+    // Clear the deadline too: an empty balance has nothing left to expire, and
+    // leaving a stale date would make the row look perpetually expiring.
+    { $set: { balanceCenti: 0, expiresAt: null, expiredAt: now } },
     { new: true, session }
   );
 
@@ -124,7 +145,11 @@ const settleExpiryInTransaction = async ({ session, organizationId, userId, prog
         type: "expire",
         pointsCenti: -lostCenti,
         balanceAfterCenti: 0,
-        createdAt: now
+        // Dated when the points EXPIRED, not when this write happened to
+        // notice. Two reasons: it's the truth, and it's what lets a report
+        // count each expiry exactly once — in the period it actually fell in,
+        // whether or not it has been materialized yet.
+        createdAt: diedAt
       }
     ],
     { session }
@@ -267,11 +292,16 @@ const awardPointsInTransaction = async ({ session, userId, organizationId, billA
   const { multiplier, campaign } = await resolveActiveMultiplier(organizationId, now);
   const earnedCenti = earnCenti(amount, program.earnPercent, multiplier);
 
-  await settleExpiryInTransaction({ session, organizationId, userId, program, now });
+  await settleExpiryInTransaction({ session, organizationId, userId, now });
 
   const updated = await PointsBalance.findOneAndUpdate(
     { userId, organizationId },
-    { $inc: { balanceCenti: earnedCenti }, $set: { lastActivityAt: now } },
+    {
+      $inc: { balanceCenti: earnedCenti },
+      // Both stamped together: activity restarts the clock, and the deadline
+      // it restarts to is the one this outlet's program promises TODAY.
+      $set: { lastActivityAt: now, expiresAt: expiryAtFrom(program, now) }
+    },
     { new: true, upsert: true, session }
   );
 
@@ -453,7 +483,7 @@ const redeemPoints = async ({ token, itemId, kind, userId, role, organizationId 
     await session.withTransaction(async () => {
       const now = new Date();
       await consumeDynamicQrToken({ token, organizationId, session, purpose: "redeem" });
-      await settleExpiryInTransaction({ session, organizationId, userId, program, now });
+      await settleExpiryInTransaction({ session, organizationId, userId, now });
 
       // The $gte guard IS the sufficient-funds check — checking the balance
       // first and deducting after would let two concurrent redeems both pass
@@ -461,13 +491,16 @@ const redeemPoints = async ({ token, itemId, kind, userId, role, organizationId 
       // go negative.
       const updated = await PointsBalance.findOneAndUpdate(
         { userId, organizationId, balanceCenti: { $gte: priceCenti } },
-        { $inc: { balanceCenti: -priceCenti }, $set: { lastActivityAt: now } },
+        {
+          $inc: { balanceCenti: -priceCenti },
+          $set: { lastActivityAt: now, expiresAt: expiryAtFrom(program, now) }
+        },
         { new: true, session }
       );
 
       if (!updated) {
         const current = await PointsBalance.findOne({ userId, organizationId }).session(session);
-        const have = toPoints(effectiveBalanceCenti(current, program, now));
+        const have = toPoints(effectiveBalanceCenti(current, now));
         throw createHttpError(
           `Not enough points — ${item.name} costs ${toPoints(priceCenti)} and you have ${have}.`,
           400
@@ -526,9 +559,9 @@ const getPointsBalanceByUserId = async (userId, organizationId) => {
   return {
     success: true,
     data: {
-      balance: toPoints(effectiveBalanceCenti(balance, program, now)),
+      balance: toPoints(effectiveBalanceCenti(balance, now)),
       lastActivityAt: balance ? balance.lastActivityAt : null,
-      expiresAt: expiresAtFor(balance, program),
+      expiresAt: expiresAtFor(balance),
       earnPercent: program.earnPercent,
       pointsExpiryDays: program.pointsExpiryDays,
       // Null unless something is live right now — the dashboard shouldn't
@@ -607,7 +640,7 @@ const getCustomerDetailRows = async (organizationId) => {
         phone: customer.phone || "",
         address: customer.address || "",
         customerNo: formattedId,
-        pointsBalance: toPoints(effectiveBalanceCenti(balance, program, now)),
+        pointsBalance: toPoints(effectiveBalanceCenti(balance, now)),
         lifetimePoints: toPoints(lifetimePointsCenti),
         lastActivityAt: balance ? balance.lastActivityAt : null,
         redemptionCount: redeems.length,
@@ -641,5 +674,6 @@ module.exports = {
   isExpiredNow,
   effectiveBalanceCenti,
   expiresAtFor,
+  expiryAtFrom,
   settleExpiryInTransaction
 };

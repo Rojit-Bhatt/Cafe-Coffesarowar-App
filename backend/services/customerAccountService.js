@@ -398,9 +398,9 @@ const getMyTenants = async ({ customerAccountId }) => {
         },
         // Same lazy expiry the outlet's own dashboard applies, so a balance
         // never reads as alive here and dead there.
-        balance: toPoints(effectiveBalanceCenti(balance, program, now)),
+        balance: toPoints(effectiveBalanceCenti(balance, now)),
         earnPercent: program.earnPercent,
-        expiresAt: expiresAtFor(balance, program),
+        expiresAt: expiresAtFor(balance),
         lastActivityAt: balance ? balance.lastActivityAt : null
       };
     })
