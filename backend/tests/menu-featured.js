@@ -52,6 +52,21 @@ async function main() {
     check("create item -> 201", created.status === 201);
     const itemId = created.body.item.id || created.body.item._id;
     check("new item defaults isFeatured to false", created.body.item.isFeatured === false);
+    check("create response speaks pointsPrice, not raw centipoints", !("pointsPriceCenti" in created.body.item));
+
+    const withPoints = await api(`/api/admin/menu/${itemId}`, {
+      method: "PATCH",
+      token: adminToken,
+      body: { pointsPrice: 25 },
+    });
+    check("PATCH pointsPrice -> 200", withPoints.status === 200);
+    check("update response converts to real points (25), not 2500 centi", withPoints.body.item.pointsPrice === 25);
+    check("update response never leaks pointsPriceCenti", !("pointsPriceCenti" in withPoints.body.item));
+
+    const listed = await api("/api/admin/menu", { token: adminToken });
+    const listedItem = listed.body.items.find((i) => (i.id || i._id) === itemId);
+    check("admin menu list also speaks pointsPrice", listedItem?.pointsPrice === 25);
+    check("admin menu list never leaks pointsPriceCenti", !("pointsPriceCenti" in (listedItem || {})));
 
     const patched = await api(`/api/admin/menu/${itemId}`, {
       method: "PATCH",
@@ -65,6 +80,8 @@ async function main() {
     check("public menu -> 200", publicMenu.status === 200);
     const myItem = publicMenu.body.items.find((i) => (i.id || i._id) === itemId);
     check("public menu exposes isFeatured on the item", Boolean(myItem) && myItem.isFeatured === true);
+    check("public menu exposes pointsPrice as real points (25)", myItem?.pointsPrice === 25);
+    check("public menu NEVER exposes raw centipoints", !("pointsPriceCenti" in (myItem || {})));
 
     // menuEnabled gate still holds even with a featured item present.
     await api("/api/admin/settings", { method: "PATCH", token: adminToken, body: { menuEnabled: false } });

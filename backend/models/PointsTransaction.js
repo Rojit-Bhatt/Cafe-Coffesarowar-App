@@ -36,6 +36,10 @@ const PointsTransactionSchema = new mongoose.Schema({
   // Campaign multiplier applied (Phase C). 1 = no campaign.
   multiplier: { type: Number, default: 1 },
   campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null },
+  // Denormalized on purpose, same as rewardName below: a campaign can be
+  // renamed or deleted later, and the ledger row has to keep saying why it
+  // was worth what it was even after campaignId points at nothing.
+  campaignName: { type: String, default: "" },
 
   // --- redeem only ---
   // Which collection rewardRef points into. A ref alone is ambiguous now that

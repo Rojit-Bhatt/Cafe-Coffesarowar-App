@@ -124,6 +124,12 @@ async function main() {
     console.log("\n== The ledger snapshots why a row is worth what it is ==");
     const hist = await api("/api/points/history", { token: customerToken });
     check("the 3x row is on the ledger at 300", hist.body.data[0].points === 300, hist.body.data[0]);
+    // Written at earn time is not the same as readable later — formatTransaction
+    // used to drop multiplier/campaignId on the read path entirely, so a
+    // customer or admin re-reading history (not the earn response) saw a
+    // plain earn with no explanation for why it was 3x the bill.
+    check("the ledger READ also exposes the multiplier", hist.body.data[0].multiplier === 3, hist.body.data[0]);
+    check("...and the campaign name", hist.body.data[0].campaignName === "Triple Day", hist.body.data[0]);
 
     console.log("\n== Switching off ==");
     await api(`/api/admin/campaigns/${c3.body.campaign.id}`, { method: "PATCH", token: adminToken, body: { isActive: false } });
@@ -170,6 +176,45 @@ async function main() {
       method: "POST", token: adminToken, body: { multiplier: 2, startAt: past },
     });
     check("a nameless campaign is refused", noName.status === 400, noName.body);
+
+    console.log("\n== A pointless-but-valid 1x campaign doesn't produce a broken ledger read ==");
+    // multiplier: 1 is permitted by validation (only < 1 is refused). If a
+    // campaign is live and named but does nothing to the earn rate, the
+    // ledger's multiplier/campaignName pairing still has to be well-formed —
+    // campaignName set with multiplier null would render "(nullx)" in the UI.
+    const c1x = await api("/api/admin/campaigns", {
+      method: "POST", token: adminToken,
+      body: { name: "Just An Announcement", multiplier: 1, startAt: past, endAt: future },
+    });
+    check("a 1x campaign is allowed to be created", c1x.status === 201, c1x.body);
+    const flatEarn = await earn(100);
+    check("a 1x campaign doesn't change the earn", flatEarn.claim.data.pointsEarned === 100, flatEarn.claim.data);
+    check("but it IS named", flatEarn.claim.data.campaignName === "Just An Announcement", flatEarn.claim.data);
+    const flatHist = await api("/api/points/history", { token: customerToken });
+    check(
+      "campaignName and multiplier are both present together, not campaignName-with-null-multiplier",
+      flatHist.body.data[0].campaignName === "Just An Announcement" && flatHist.body.data[0].multiplier === 1,
+      flatHist.body.data[0],
+    );
+    await api(`/api/admin/campaigns/${c1x.body.campaign.id}`, { method: "PATCH", token: adminToken, body: { isActive: false } });
+
+    console.log("\n== Deleting the campaign doesn't erase why a past row was worth what it was ==");
+    const gone = await api("/api/admin/campaigns", {
+      method: "POST", token: adminToken,
+      body: { name: "Vanishing Act", multiplier: 4, startAt: past, endAt: future },
+    });
+    check("a throwaway campaign is created", gone.status === 201, gone.body);
+    const goneEarn = await earn(50);
+    check("it earns at 4x", goneEarn.claim.data.pointsEarned === 200, goneEarn.claim.data);
+    const del = await api(`/api/admin/campaigns/${gone.body.campaign.id}`, { method: "DELETE", token: adminToken });
+    check("the campaign deletes", del.status === 200, del.body);
+    const afterDelete = await api("/api/points/history", { token: customerToken });
+    const survivingRow = afterDelete.body.data.find((t) => t.points === 200);
+    check(
+      "the ledger row survives the campaign's deletion, name and multiplier intact",
+      survivingRow?.campaignName === "Vanishing Act" && survivingRow?.multiplier === 4,
+      survivingRow,
+    );
 
     console.log("\n== Outlet isolation ==");
     const sibling = await api("/api/admin-auth/login", {

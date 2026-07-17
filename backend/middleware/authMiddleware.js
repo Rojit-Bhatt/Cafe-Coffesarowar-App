@@ -1,6 +1,7 @@
 const { verifyAuthToken } = require("../utils/tokenUtils");
 const User = require("../models/User");
 const Organization = require("../models/Organization");
+const Company = require("../models/Company");
 
 const extractToken = (req) => {
   const authHeader = req.headers.authorization;
@@ -52,7 +53,20 @@ const verifyToken = async (req, _res, next) => {
     if (decoded.organizationId) {
       const organization = await Organization.findOne({ _id: decoded.organizationId });
 
-      if (!organization || organization.status === "suspended") {
+      if (!organization || organization.status === "suspended" || organization.status === "archived") {
+        const error = new Error("This business is suspended.");
+        error.statusCode = 401;
+        error.code = "TENANT_SUSPENDED";
+        throw error;
+      }
+
+      // The outlet itself can read "active" while its parent company is
+      // suspended — resolveTenant already blocks this on the public side;
+      // an already-issued JWT must lose access the same way, not just ride
+      // out the rest of JWT_EXPIRES_IN.
+      const company = await Company.findOne({ _id: organization.companyId });
+
+      if (!company || company.status === "suspended") {
         const error = new Error("This business is suspended.");
         error.statusCode = 401;
         error.code = "TENANT_SUSPENDED";

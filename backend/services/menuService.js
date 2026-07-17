@@ -101,8 +101,24 @@ const createHttpError = (message, statusCode) => {
   return error;
 };
 
+// Centipoints never leave the backend: converts pointsPriceCenti -> pointsPrice
+// (real points) on the way out, the same rule pointsService's own catalog
+// formatting follows. Every path that hands a menu item to a controller goes
+// through this — listForOrg, createItem, updateItem — so no raw centipoint
+// integer ever reaches a public or admin response.
+const formatItem = (item) => {
+  const obj = item.toObject ? item.toObject() : item;
+  const { pointsPriceCenti, ...rest } = obj;
+  return {
+    ...rest,
+    pointsPrice:
+      pointsPriceCenti === null || pointsPriceCenti === undefined ? null : toPoints(pointsPriceCenti)
+  };
+};
+
 const listForOrg = async (organizationId) => {
-  return MenuItem.find({ organizationId }).sort({ sortOrder: 1 });
+  const items = await MenuItem.find({ organizationId }).sort({ sortOrder: 1 });
+  return items.map(formatItem);
 };
 
 const createItem = async (
@@ -128,7 +144,7 @@ const createItem = async (
     sortOrder: sortOrder !== undefined ? sortOrder : 0
   });
 
-  return item;
+  return formatItem(item);
 };
 
 // Only these fields may be changed via the API — never organizationId or _id,
@@ -161,7 +177,7 @@ const updateItem = async (organizationId, itemId, updates) => {
     throw createHttpError("Menu item not found.", 404);
   }
 
-  return updatedItem;
+  return formatItem(updatedItem);
 };
 
 const deleteItem = async (organizationId, itemId) => {

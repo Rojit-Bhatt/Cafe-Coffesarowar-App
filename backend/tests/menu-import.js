@@ -252,12 +252,12 @@ async function main() {
     await confirmRows(pv.body.rows.filter((r) => r.status !== "unchanged"));
     let ptsItems = await currentMenu();
     check(
-      "a points price is stored as centipoints",
-      ptsItems.find((i) => i.name === "Flat White")?.pointsPriceCenti === 18000,
+      "a points price comes back as real points, not raw centipoints",
+      ptsItems.find((i) => i.name === "Flat White")?.pointsPrice === 180,
     );
     check(
       "a blank one is stored as null",
-      ptsItems.find((i) => i.name === "Plain Bun")?.pointsPriceCenti === null,
+      ptsItems.find((i) => i.name === "Plain Bun")?.pointsPrice === null,
     );
 
     // The footgun this three-state rule exists for.
@@ -273,7 +273,7 @@ async function main() {
     check("the rupee price still updates", ptsItems.find((i) => i.name === "Flat White")?.price === 190);
     check(
       "an ABSENT column leaves the existing points price alone",
-      ptsItems.find((i) => i.name === "Flat White")?.pointsPriceCenti === 18000,
+      ptsItems.find((i) => i.name === "Flat White")?.pointsPrice === 180,
     );
 
     // ...but a present-but-blank cell is a real instruction to clear it.
@@ -287,7 +287,7 @@ async function main() {
     ptsItems = await currentMenu();
     check(
       "a PRESENT but blank cell does clear it",
-      ptsItems.find((i) => i.name === "Flat White")?.pointsPriceCenti === null,
+      ptsItems.find((i) => i.name === "Flat White")?.pointsPrice === null,
     );
 
     pv = await uploadSheet(

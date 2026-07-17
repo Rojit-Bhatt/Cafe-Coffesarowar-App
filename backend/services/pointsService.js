@@ -319,6 +319,7 @@ const awardPointsInTransaction = async ({ session, userId, organizationId, billA
         // worth what it is, even after the campaign ends or is deleted.
         multiplier,
         campaignId: campaign ? campaign._id : null,
+        campaignName: campaign ? campaign.name : "",
         token,
         createdAt: now
       }
@@ -579,6 +580,13 @@ const formatTransaction = (txn) => ({
   balanceAfter: toPoints(txn.balanceAfterCenti),
   billAmount: txn.billAmount,
   rewardName: txn.rewardName || "",
+  // Tied to campaignName, not to the multiplier's own value: gating on
+  // `!== 1` would leave campaignName set but multiplier null for a
+  // (permitted, if pointless) 1x campaign, and the UI interpolates
+  // `${multiplier}x` right next to the name — that reads "(nullx)".
+  // Both fields are present together or absent together.
+  campaignName: txn.campaignName || null,
+  multiplier: txn.campaignName ? txn.multiplier : null,
   createdAt: txn.createdAt
 });
 

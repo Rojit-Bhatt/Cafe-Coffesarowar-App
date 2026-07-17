@@ -217,6 +217,47 @@ async function run() {
     "suspended tenant's public /api/tenant also gets code TENANT_SUSPENDED",
   );
 
+  console.log("\n== An ARCHIVED outlet's already-issued JWT is blocked too (not just suspended) ==");
+  const archive = await api(`/api/platform/outlets/${brew.id}`, {
+    method: "PATCH",
+    token: pToken,
+    body: { status: "archived" },
+  });
+  ok(archive.status === 200 && archive.json?.outlet?.status === "archived", "platform archives the 2nd outlet");
+  const archivedAuthed = await api("/api/admin/settings", { token: brewAdmin });
+  ok(
+    archivedAuthed.status === 401 && archivedAuthed.json?.code === "TENANT_SUSPENDED",
+    "an archived outlet's already-issued token is blocked, same as suspended",
+  );
+  await api(`/api/platform/outlets/${brew.id}`, { method: "PATCH", token: pToken, body: { status: "active" } });
+
+  console.log("\n== A suspended COMPANY blocks its outlets' already-issued tokens, even one reading as 'active' ==");
+  // Mint the token BEFORE suspending — an admin-auth login is itself gated on
+  // company status, so logging in after suspension would just prove the
+  // login gate works, not the JWT-revalidation gate this finding is about.
+  const durbarLogin = await api("/api/admin-auth/login", {
+    method: "POST",
+    body: { email: "durbarmarg@coffesarowar.com", password: "password" },
+  });
+  const durbarToken = durbarLogin.json?.token;
+  ok(!!durbarToken, "durbarmarg admin has a working tenant JWT while the company is still active");
+
+  const brewCompanyId = company?.id;
+  ok(!!brewCompanyId, "have the parent company's id to suspend");
+  const suspendCompany = await api(`/api/platform/companies/${brewCompanyId}`, {
+    method: "PATCH",
+    token: pToken,
+    body: { status: "suspended" },
+  });
+  ok(suspendCompany.status === 200 && suspendCompany.json?.company?.status === "suspended", "platform suspends the whole company");
+
+  const companySuspendedAuthed = await api("/api/admin/settings", { token: durbarToken });
+  ok(
+    companySuspendedAuthed.status === 401 && companySuspendedAuthed.json?.code === "TENANT_SUSPENDED",
+    "a sibling outlet reading 'active' is still blocked when its COMPANY is suspended",
+  );
+  await api(`/api/platform/companies/${brewCompanyId}`, { method: "PATCH", token: pToken, body: { status: "active" } });
+
   console.log(`\n== RESULT: ${pass} passed, ${fail} failed ==`);
   return fail ? 1 : 0;
 }

@@ -171,7 +171,9 @@ export default function AdminTransactions() {
                 </span>
                 <span className="truncate text-[var(--muted)]">
                   {r.type === "earn" && r.billAmount != null
-                    ? formatNpr(r.billAmount)
+                    ? r.campaignName
+                      ? `${formatNpr(r.billAmount)} · ${r.campaignName} (${r.multiplier}x)`
+                      : formatNpr(r.billAmount)
                     : r.type === "redeem"
                       ? r.rewardName || "—"
                       : "inactivity"}

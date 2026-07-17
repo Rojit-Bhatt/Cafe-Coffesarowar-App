@@ -25,7 +25,10 @@ function formatWhen(iso: string): string {
 }
 
 function rowSubtitle(txn: PointsTransaction): string {
-  if (txn.type === "earn" && txn.billAmount != null) return `on a ${formatNpr(txn.billAmount)} bill`;
+  if (txn.type === "earn" && txn.billAmount != null) {
+    const base = `on a ${formatNpr(txn.billAmount)} bill`;
+    return txn.campaignName ? `${base} · ${txn.campaignName} (${txn.multiplier}x)` : base;
+  }
   if (txn.type === "redeem" && txn.rewardName) return txn.rewardName;
   if (txn.type === "expire") return "after a long gap between visits";
   return "";

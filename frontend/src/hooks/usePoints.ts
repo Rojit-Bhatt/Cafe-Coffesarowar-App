@@ -38,6 +38,9 @@ export interface PointsTransaction {
   balanceAfter: number;
   billAmount: number | null;
   rewardName: string;
+  /** Null unless a campaign actually applied to this row. */
+  multiplier: number | null;
+  campaignName: string | null;
   createdAt: string;
 }
 

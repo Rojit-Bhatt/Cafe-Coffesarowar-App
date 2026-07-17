@@ -8,7 +8,11 @@ export interface MenuImportPreviewRow {
   price: number | null;
   category: string;
   description: string;
-  previous?: { price: number | null; category: string; description: string };
+  // Absent entirely (not undefined-as-a-value) when the sheet carries no
+  // Points Price column at all — the three-state rule from CLAUDE.md. `in`
+  // checks below distinguish "no column" from "column, blank cell" (null).
+  pointsPrice?: number | null;
+  previous?: { price: number | null; category: string; description: string; pointsPrice?: number | null };
 }
 
 export interface MenuImportPreview {
@@ -26,6 +30,8 @@ interface MenuImportPreviewModalProps {
 }
 
 const formatPrice = (p: number | null) => (typeof p === "number" ? p.toString() : "—");
+const formatPointsPrice = (p: number | null | undefined) =>
+  typeof p === "number" ? `${p} pts` : "menu-only";
 
 export function MenuImportPreviewModal({ open, onOpenChange, preview, onApprove, approving }: MenuImportPreviewModalProps) {
   if (!preview) return null;
@@ -59,6 +65,7 @@ export function MenuImportPreviewModal({ open, onOpenChange, preview, onApprove,
                     <span className="truncate font-semibold text-[var(--ink)]">{row.name}</span>
                     <span className="flex-shrink-0 text-[var(--muted)]">
                       {formatPrice(row.price)} · {row.category}
+                      {"pointsPrice" in row && ` · ${formatPointsPrice(row.pointsPrice)}`}
                     </span>
                   </div>
                 ))}
@@ -87,10 +94,18 @@ export function MenuImportPreviewModal({ open, onOpenChange, preview, onApprove,
                         — category {row.previous.category} to {row.category}
                       </span>
                     )}
+                    {row.previous && "pointsPrice" in row.previous && row.previous.pointsPrice !== row.pointsPrice && (
+                      <span className="text-[var(--muted)]">
+                        {" "}
+                        — points price {formatPointsPrice(row.previous.pointsPrice)} to{" "}
+                        {formatPointsPrice(row.pointsPrice)}
+                      </span>
+                    )}
                     {row.previous &&
                       row.previous.description !== row.description &&
                       row.previous.price === row.price &&
-                      row.previous.category === row.category && (
+                      row.previous.category === row.category &&
+                      (!("pointsPrice" in row.previous) || row.previous.pointsPrice === row.pointsPrice) && (
                         <span className="text-[var(--muted)]"> — description updated</span>
                       )}
                   </div>

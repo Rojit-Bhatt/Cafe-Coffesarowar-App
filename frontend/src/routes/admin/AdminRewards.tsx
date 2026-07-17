@@ -22,7 +22,7 @@ interface MenuItem {
   _id: string;
   name: string;
   price: number | null;
-  pointsPriceCenti: number | null;
+  pointsPrice: number | null;
   isAvailable: boolean;
 }
 
@@ -140,7 +140,7 @@ export default function AdminRewards() {
     onSuccess: invalidate,
   });
 
-  const redeemableMenu = menu.filter((m) => m.pointsPriceCenti !== null && m.pointsPriceCenti !== undefined);
+  const redeemableMenu = menu.filter((m) => m.pointsPrice !== null && m.pointsPrice !== undefined);
 
   return (
     <div className="max-w-[760px]">
@@ -298,9 +298,7 @@ export default function AdminRewards() {
           </div>
         ) : (
           menu.map((m) => {
-            const points = m.pointsPriceCenti === null || m.pointsPriceCenti === undefined
-              ? ""
-              : String(m.pointsPriceCenti / 100);
+            const points = m.pointsPrice === null || m.pointsPrice === undefined ? "" : String(m.pointsPrice);
             return (
               <div
                 key={m._id}
@@ -327,7 +325,7 @@ export default function AdminRewards() {
                     onBlur={(e) => {
                       const raw = e.target.value.trim();
                       const next = raw === "" ? null : Number(raw);
-                      const current = m.pointsPriceCenti === null ? null : m.pointsPriceCenti / 100;
+                      const current = m.pointsPrice ?? null;
                       if (next === current) return;
                       setMenuPoints.mutate({ id: m._id, pointsPrice: next });
                       toast.success(next === null ? `${m.name} is menu-only now.` : `${m.name} costs ${next} points.`);
