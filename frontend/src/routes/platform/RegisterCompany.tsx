@@ -10,9 +10,9 @@ import { BUSINESS_CATEGORIES, CATEGORY_LABELS, type BusinessCategory } from "../
 const slugify = (s: string) =>
   s.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
 
-interface CreatedBusiness {
+interface CreatedCompany {
   name: string;
-  companyPath: string;
+  ownerEmail: string;
 }
 
 export default function RegisterCompany() {
@@ -27,7 +27,7 @@ export default function RegisterCompany() {
   });
   const [slugEdited, setSlugEdited] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<CreatedBusiness | null>(null);
+  const [done, setDone] = useState<CreatedCompany | null>(null);
   const [copied, setCopied] = useState(false);
 
   const set = (k: Exclude<keyof typeof form, "category">, v: string) =>
@@ -43,12 +43,12 @@ export default function RegisterCompany() {
     }
     setBusy(true);
     try {
-      const res = await apiRequest<{ success: boolean; company: { name: string }; companyPath: string }>(
+      const res = await apiRequest<{ success: boolean; company: { name: string } }>(
         "/api/platform/companies",
         { method: "POST", role: "platform", body: form },
       );
-      qc.invalidateQueries({ queryKey: ["platformBusinesses"] });
-      setDone({ name: res.company.name, companyPath: res.companyPath });
+      qc.invalidateQueries({ queryKey: ["platformCompanies"] });
+      setDone({ name: res.company.name, ownerEmail: form.ownerEmail });
       toast.success(`${res.company.name} is live!`);
     } catch (err) {
       toast.error((err as Error).message || "Couldn't register that company — try again.");
@@ -64,11 +64,15 @@ export default function RegisterCompany() {
   };
 
   if (done) {
-    const url = `${window.location.origin}${done.companyPath}`;
+    // The staff sign-in, NOT the company path. A company slug alone has no
+    // page — `/:companySlug` redirects to /explore, the customer directory —
+    // so sharing it would send the new owner somewhere they can't sign in.
+    // Staff login is slug-less now: the credentials decide where they land.
+    const url = `${window.location.origin}/admin-login`;
     return (
       <div className="max-w-[620px]">
         <Link to="/platform" className="mb-3.5 inline-block text-[13px] text-[var(--muted)]">
-          ← Businesses
+          ← Companies
         </Link>
         <div className="shadow-ambient rounded-3xl border border-[#CBE4D6] bg-[var(--ok-soft)] p-8 text-center">
           <div
@@ -81,7 +85,8 @@ export default function RegisterCompany() {
             {done.name} is live!
           </h2>
           <p className="mx-auto mb-4 mt-1 max-w-sm text-[var(--muted)]">
-            Share this link with the owner so they can log in and set up their program.
+            We've emailed {done.ownerEmail || "the owner"} a link to verify their address. They sign
+            in here once they have — then they can add their outlets.
           </p>
           <div className="mb-4 flex items-center justify-between gap-2.5 rounded-[12px] border border-[var(--line)] bg-white px-4 py-3">
             <span className="truncate font-mono text-sm" style={{ color: "var(--plat)" }}>
@@ -122,18 +127,18 @@ export default function RegisterCompany() {
   return (
     <div className="max-w-[620px]">
       <Link to="/platform" className="mb-3.5 inline-block text-[13px] text-[var(--muted)]">
-        ← Businesses
+        ← Companies
       </Link>
       <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">
         Register a new company
       </h1>
       <p className="mb-6 text-[var(--muted)]">
-        Create the tenant and its first admin login. You’ll get a link to hand off to the owner.
+        Create the company and its owner. They verify by email, then add their own outlets.
       </p>
 
       <div className="flex flex-col gap-5">
-        <Card title="Business">
-          <Label>Business name</Label>
+        <Card title="Company">
+          <Label>Company name</Label>
           <input
             value={form.name}
             onChange={(e) => onName(e.target.value)}
@@ -167,7 +172,7 @@ export default function RegisterCompany() {
           </select>
         </Card>
 
-        <Card title="Business admin login">
+        <Card title="Owner login">
           <div className="flex flex-col gap-3">
             <input
               value={form.ownerName}
@@ -197,7 +202,7 @@ export default function RegisterCompany() {
           className="stamp-interactive rounded-full py-4 text-[16px] font-bold text-white disabled:opacity-50"
           style={{ background: "var(--plat)" }}
         >
-          {busy ? "Creating…" : "Create business & admin"}
+          {busy ? "Creating…" : "Create company & owner"}
         </button>
       </div>
     </div>
