@@ -91,6 +91,38 @@ export default function ClaimLanding() {
     setStage(user ? "fulfilling" : "choose");
   }, [stage, isLoading, user]);
 
+  // Shared between the awaiting-verification poll and the already-fulfilled
+  // race below: both need "go fetch what actually happened and show it."
+  // Sets stage itself on a definitive outcome (fulfilled or expired) and
+  // reports whether it did, so callers only need to handle "still nothing
+  // to show yet" (transient fetch failure, or genuinely still pending).
+  const checkStatus = async (claimId: string, expiredMessage?: string) => {
+    try {
+      const res = await apiRequest<{ success: boolean; data: { fulfilled: boolean; expired: boolean } & Partial<ClaimResult> }>(
+        `/api/claim/${claimId}/status?secret=${encodeURIComponent(claimSecret ?? "")}`,
+      );
+      if (res.data.fulfilled) {
+        setResult({
+          pointsEarned: res.data.pointsEarned ?? 0,
+          billAmount: res.data.billAmount ?? 0,
+          balance: res.data.balance ?? 0,
+          multiplier: res.data.multiplier,
+          campaignName: res.data.campaignName,
+        });
+        setStage("success");
+        return true;
+      }
+      if (res.data.expired && expiredMessage) {
+        setStage("error");
+        setErrorMsg(expiredMessage);
+        return true;
+      }
+    } catch {
+      // transient — caller decides what "not shown" means for it
+    }
+    return false;
+  };
+
   const fulfill = async (claimId: string) => {
     setStage("fulfilling");
     try {
@@ -101,7 +133,22 @@ export default function ClaimLanding() {
       setResult(res.data);
       setStage("success");
     } catch (e) {
-      const message = (e as Error).message || "";
+      const err = e as Error & { code?: string };
+      if (err.code === "CLAIM_ALREADY_FULFILLED") {
+        // Not a failure: the points were already awarded, most often by
+        // autoFulfillForAccount firing the instant verification landed,
+        // moments before this tab (backgrounded while you were in your
+        // email app) resumed and tried to fulfill the same claim itself.
+        // Show what actually happened instead of a scary error for a
+        // claim that, from the customer's side, succeeded.
+        const shown = await checkStatus(claimId);
+        if (!shown) {
+          setStage("error");
+          setErrorMsg("Your points were already added — check your balance on the dashboard.");
+        }
+        return;
+      }
+      const message = err.message || "";
       if (message.toLowerCase().includes("verify your email")) {
         setStage("awaiting-verification");
       } else {
@@ -121,27 +168,8 @@ export default function ClaimLanding() {
   // Poll while waiting on email verification (possibly from another tab).
   useEffect(() => {
     if (stage !== "awaiting-verification" || !pendingClaimId) return;
-    const interval = setInterval(async () => {
-      try {
-        const res = await apiRequest<{ success: boolean; data: { fulfilled: boolean; expired: boolean } & Partial<ClaimResult> }>(
-          `/api/claim/${pendingClaimId}/status?secret=${encodeURIComponent(claimSecret ?? "")}`,
-        );
-        if (res.data.fulfilled) {
-          setResult({
-            pointsEarned: res.data.pointsEarned ?? 0,
-            billAmount: res.data.billAmount ?? 0,
-            balance: res.data.balance ?? 0,
-            multiplier: res.data.multiplier,
-            campaignName: res.data.campaignName,
-          });
-          setStage("success");
-        } else if (res.data.expired) {
-          setStage("error");
-          setErrorMsg("This code expired before you verified — ask staff for a new one.");
-        }
-      } catch {
-        // transient — keep polling
-      }
+    const interval = setInterval(() => {
+      checkStatus(pendingClaimId, "This code expired before you verified — ask staff for a new one.");
     }, 4000);
     return () => clearInterval(interval);
   }, [stage, pendingClaimId, claimSecret]);

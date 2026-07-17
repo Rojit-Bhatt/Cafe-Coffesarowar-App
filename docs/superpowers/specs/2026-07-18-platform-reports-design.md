@@ -60,7 +60,7 @@ Investigating turned up a real bug in the existing surface: `getPlatformAnalytic
   - Converts centipoints to points once, on the way out (`toPoints`), same rule as everywhere else in the backend.
   - Returns an array, one entry per company, sorted by revenue descending (matching `getCompanyRollup`'s existing per-outlet sort).
   - Missing/invalid `startDate`/`endDate` default to the last 30 days, computed server-side. `reportService.js`'s existing `resolveDateRange` already implements exactly this and is currently module-private (not in its `module.exports`) — add it to that file's exports and import it here rather than reimplementing the same default-window logic a second time.
-- `buildPlatformCompanyReportWorkbook(rows, { startDate, endDate })` (new): builds the `.xlsx` via ExcelJS (never the banned `xlsx` package), one row per company, the 8 columns from decision 5, plus the date range used written into the sheet (matching `buildSummaryWorkbook`'s existing convention of recording the range it covers).
+- `buildPlatformCompanyReportWorkbook(rows, { startDate, endDate })` (new): builds the `.xlsx` via ExcelJS (never the banned `xlsx` package), one row per company, the 8 columns from decision 5. Header sits on row 1 (not pushed down by a preamble row) so the sheet is directly sortable/filterable in Excel; the date range used goes in the worksheet's name instead.
 
 ### Routes / controller
 

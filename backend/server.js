@@ -35,7 +35,8 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const { PLATFORM_NAME } = require("./config/platform");
-const { seedDemoData } = require("./seed/demoSeed");
+const { seedDemoData, ensurePlatformAdmin } = require("./seed/demoSeed");
+const { ensureDefaultPlansSeeded } = require("./services/subscriptionPlanService");
 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -131,11 +132,30 @@ app.use((error, _req, res, _next) => {
   });
 });
 
+// Opt-out escape hatch for a from-scratch run with none of the demo
+// companies/outlets/customers — everything an operator does from here is a
+// real POST against a real (if in-memory) database, not a fixture. Still
+// needs exactly one platform admin to exist (nothing self-registers a
+// platform account) and the real subscription plans (outlet-limit gating
+// isn't demo data, it's product config) — both idempotent, so a restart
+// against a persistent DB won't recreate what's already there.
 const startServer = async () => {
   await connectDB();
-  await seedDemoData();
 
-  app.listen(PORT, () => {
+  if (process.env.SEED_DEMO_DATA === "false") {
+    if (!process.env.PLATFORM_ADMIN_EMAIL || !process.env.PLATFORM_ADMIN_PASSWORD) {
+      console.error(
+        "FATAL: SEED_DEMO_DATA=false requires PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD to be set."
+      );
+      process.exit(1);
+    }
+    await ensureDefaultPlansSeeded();
+    await ensurePlatformAdmin(process.env.PLATFORM_ADMIN_EMAIL, process.env.PLATFORM_ADMIN_PASSWORD);
+  } else {
+    await seedDemoData();
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
     console.log(`${PLATFORM_NAME} server running on port ${PORT}`);
   });
 };

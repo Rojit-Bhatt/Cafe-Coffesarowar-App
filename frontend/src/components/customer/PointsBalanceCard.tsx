@@ -3,7 +3,6 @@ import { formatPoints } from "../../hooks/usePoints";
 
 interface PointsBalanceCardProps {
   balance: number;
-  earnPercent: number;
   /** Null = this outlet's points never expire. */
   expiresAt: string | null;
   businessName?: string;
@@ -18,7 +17,6 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // inventing a number the outlet never set.
 export function PointsBalanceCard({
   balance,
-  earnPercent,
   expiresAt,
   businessName,
   isLoading,
@@ -40,18 +38,13 @@ export function PointsBalanceCard({
       transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 220, damping: 20 }}
       className="shadow-ambient mb-4 overflow-hidden rounded-3xl bg-[var(--surface)] p-6"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          {businessName && (
-            <div className="truncate font-display text-lg font-bold" style={{ color: "var(--brand)" }}>
-              {businessName}
-            </div>
-          )}
-          <div className="text-sm text-[var(--muted)]">Your points</div>
-        </div>
-        <span className="flex-shrink-0 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
-          {earnPercent === 100 ? "1 point per Rs 1" : `${earnPercent}% back`}
-        </span>
+      <div className="min-w-0">
+        {businessName && (
+          <div className="truncate font-display text-lg font-bold" style={{ color: "var(--brand)" }}>
+            {businessName}
+          </div>
+        )}
+        <div className="text-sm text-[var(--muted)]">Your points</div>
       </div>
 
       <div className="mt-4">

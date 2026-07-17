@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Search, Download } from "lucide-react";
 import { apiRequest, tenantHeaders } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { useTenant } from "../../context/TenantContext";
+import { tenantPath } from "../../lib/tenantPath";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface AdminCustomer {
@@ -28,7 +30,7 @@ function lastVisit(iso: string | null): string {
 }
 
 export default function AdminCustomers() {
-  const { slug } = useParams();
+  const { companySlug, outletSlug } = useTenant();
   const { data: settings } = useAdminSettings();
   const { user } = useAdminAuth();
   const orgId = user?.organizationId ?? null;
@@ -129,7 +131,7 @@ export default function AdminCustomers() {
           filtered.map((c) => (
             <Link
               key={c.id}
-              to={`/${slug}/admin/customers/${c.id}`}
+              to={tenantPath(companySlug, outletSlug, `admin/customers/${c.id}`)}
               className="grid w-full grid-cols-[2fr_1fr_1fr_1fr_1fr] gap-4 items-center border-b border-[var(--line)] px-5 py-3.5 text-left last:border-b-0 hover:bg-[var(--surface-container)]"
             >
               <span className="flex items-center gap-3 min-w-0">

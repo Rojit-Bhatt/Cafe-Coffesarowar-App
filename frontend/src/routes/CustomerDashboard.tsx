@@ -39,7 +39,6 @@ export default function CustomerDashboard() {
   const { data: campaigns = [] } = usePublicCampaigns();
 
   const balance = points?.balance ?? 0;
-  const earnPercent = points?.earnPercent ?? tenant?.program?.earnPercent ?? 100;
 
   // What the balance can actually buy right now — far more motivating than a
   // bare number, and it's the outlet's own catalog, not an invented target.
@@ -145,7 +144,6 @@ export default function CustomerDashboard() {
 
       <PointsBalanceCard
         balance={balance}
-        earnPercent={earnPercent}
         expiresAt={points?.expiresAt ?? null}
         businessName={tenant?.name}
         isLoading={cardLoading}

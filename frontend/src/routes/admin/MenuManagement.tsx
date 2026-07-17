@@ -15,6 +15,10 @@ interface MenuItem {
   name: string;
   description: string;
   price: number | null;
+  // null = menu-only (the default). A number makes the item redeemable —
+  // set right here, next to the item it applies to, instead of on a
+  // separate Rewards page disconnected from the menu it's describing.
+  pointsPrice: number | null;
   category: string;
   isAvailable: boolean;
   isFeatured: boolean;
@@ -145,6 +149,10 @@ export default function MenuManagement() {
   });
 
   const categories = useMemo(() => Array.from(new Set(items.map((i) => i.category || "General"))), [items]);
+  const redeemableCount = useMemo(
+    () => items.filter((i) => i.pointsPrice !== null && i.pointsPrice !== undefined).length,
+    [items],
+  );
 
   const filteredItems = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -188,7 +196,7 @@ export default function MenuManagement() {
       <div className="mb-6 shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
         <div className="mb-1 text-sm font-bold">Import from Excel</div>
         <p className="mb-3 text-[13px] text-[var(--muted)]">
-          Columns: Name (required), Price, Category, Description. You'll review what will change before anything is saved.
+          Columns: Name (required), Price, Points Price, Category, Description. You'll review what will change before anything is saved.
         </p>
 
         <div
@@ -344,6 +352,26 @@ export default function MenuManagement() {
                   </div>
                 </div>
                 <span className="text-sm font-bold">{typeof i.price === "number" ? i.price : "—"}</span>
+                <label
+                  className="flex flex-shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--line)] bg-[var(--bg)] px-2.5 py-1.5"
+                  title="Points price — leave blank to keep this item menu-only"
+                >
+                  <input
+                    type="number"
+                    min={0}
+                    defaultValue={i.pointsPrice ?? ""}
+                    placeholder="—"
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      const next = raw === "" ? null : Number(raw);
+                      if (next === (i.pointsPrice ?? null)) return;
+                      patchItem.mutate({ id: itemId(i), body: { pointsPrice: next } });
+                      toast.success(next === null ? `${i.name} is menu-only now.` : `${i.name} costs ${next} points.`);
+                    }}
+                    className="w-14 bg-transparent text-sm focus:outline-none"
+                  />
+                  <span className="text-[11px] text-[var(--muted)]">pts</span>
+                </label>
                 <button
                   onClick={() =>
                     patchItem.mutate({ id: itemId(i), body: { isAvailable: !i.isAvailable } })
@@ -380,6 +408,10 @@ export default function MenuManagement() {
           </div>
         )}
       </div>
+      <p className="mt-2.5 text-[13px] text-[var(--soft)]">
+        Give an item a points price to make it redeemable — leave it blank to keep it menu-only.
+        {redeemableCount > 0 ? ` ${redeemableCount} item${redeemableCount === 1 ? " is" : "s are"} redeemable.` : ""}
+      </p>
 
       <MenuImportPreviewModal
         open={previewOpen}

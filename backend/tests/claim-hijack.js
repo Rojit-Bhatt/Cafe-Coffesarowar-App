@@ -157,6 +157,30 @@ async function main() {
     check("the real secret reads the status", status.status === 200, status.body);
     check("...showing it fulfilled", status.body?.data?.fulfilled === true, status.body?.data);
 
+    console.log("\n== A re-fulfill of an already-fulfilled claim is tagged, not just refused ==");
+    // The real-world case: the claim tab was backgrounded to open the email,
+    // autoFulfillForAccount already awarded the points on verify (above), and
+    // now the SAME tab resumes and tries to fulfill the claim it's already
+    // been granted. Before this fix the client had no way to tell that apart
+    // from a genuinely stale/foreign claim, and showed a scary error for
+    // what was, from the customer's side, already a success.
+    const reFulfill = await api(`/api/claim/${claimId}/fulfill`, {
+      method: "POST", token: victimTenant.body.token, body: { claimSecret: realSecret },
+    });
+    check("re-fulfilling an already-fulfilled claim -> 400", reFulfill.status === 400, reFulfill.body);
+    check(
+      "...tagged CLAIM_ALREADY_FULFILLED so the client can show success instead of an error",
+      reFulfill.body?.code === "CLAIM_ALREADY_FULFILLED",
+      reFulfill.body,
+    );
+    // The double attempt must not have double-awarded anything.
+    const victimBalanceAfterRefulfill = await api("/api/points/balance", { token: victimTenant.body.token });
+    check(
+      "the balance is untouched by the re-fulfill attempt (still 500, not 1000)",
+      victimBalanceAfterRefulfill.body?.data?.balance === 500,
+      victimBalanceAfterRefulfill.body?.data,
+    );
+
     console.log("\n== A claim already bound to someone else stays theirs ==");
     const qr2 = await api("/api/admin/generate-qr", { method: "POST", token: adminToken, body: { billAmount: 300 } });
     const start2 = await api("/api/claim/start", { method: "POST", body: { token: qr2.body.data.token } });

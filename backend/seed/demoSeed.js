@@ -74,6 +74,27 @@ const CUSTOMERS = [
   }
 ];
 
+// The only staff identity that is still a User row rather than an
+// AdminAccount. Idempotent-by-existence, so it's also the entire bootstrap
+// needed for a from-scratch (no demo data) run — see ensurePlatformAdmin
+// below and server.js's SEED_DEMO_DATA=false path.
+const ensurePlatformAdmin = async (email, password) => {
+  const User = require("../models/User");
+  let platformAdmin = await User.findOne({ email, role: "platform" });
+  if (!platformAdmin) {
+    platformAdmin = await User.create({
+      organizationId: null,
+      name: `${PLATFORM_NAME} Admin`,
+      email,
+      password: await bcrypt.hash(password, 10),
+      role: "platform",
+      emailVerified: true
+    });
+    console.log(`[seed] Platform admin: ${email}`);
+  }
+  return platformAdmin;
+};
+
 const seedDemoData = async () => {
   const User = require("../models/User");
   const Company = require("../models/Company");
@@ -90,22 +111,7 @@ const seedDemoData = async () => {
 
   try {
     await ensureDefaultPlansSeeded();
-
-    // 1. Platform super-admin — the only staff identity that is still a User
-    // row rather than an AdminAccount.
-    const platformEmail = "admin@stampd.co";
-    let platformAdmin = await User.findOne({ email: platformEmail, role: "platform" });
-    if (!platformAdmin) {
-      platformAdmin = await User.create({
-        organizationId: null,
-        name: `${PLATFORM_NAME} Admin`,
-        email: platformEmail,
-        password: await bcrypt.hash("password", 10),
-        role: "platform",
-        emailVerified: true
-      });
-      console.log(`[seed] Platform admin: ${platformEmail} / password`);
-    }
+    const platformAdmin = await ensurePlatformAdmin("admin@stampd.co", "password");
 
     const passwordHash = await bcrypt.hash("password", 10);
     const now = new Date();
@@ -325,4 +331,4 @@ const seedDemoData = async () => {
   }
 };
 
-module.exports = { seedDemoData };
+module.exports = { seedDemoData, ensurePlatformAdmin };

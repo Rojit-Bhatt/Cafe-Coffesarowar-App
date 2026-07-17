@@ -11,9 +11,10 @@ const { ensureMembership } = require("./customerAccountService");
 
 const PENDING_CLAIM_TTL_MS = 15 * 60 * 1000;
 
-const createHttpError = (message, statusCode) => {
+const createHttpError = (message, statusCode, code) => {
   const error = new Error(message);
   error.statusCode = statusCode;
+  if (code) error.code = code;
   return error;
 };
 
@@ -131,7 +132,7 @@ const linkPendingClaimToAccount = async ({ pendingClaimId, claimSecret, customer
   const claim = await PendingClaim.findOne({ _id: pendingClaimId });
   if (!claim) throw createHttpError("Claim not found.", 404);
   assertClaimSecret(claim, claimSecret);
-  if (claim.fulfilled) throw createHttpError("This claim has already been used.", 400);
+  if (claim.fulfilled) throw createHttpError("This claim has already been used.", 400, "CLAIM_ALREADY_FULFILLED");
   if (claim.expiresAt.getTime() <= Date.now()) throw createHttpError("This claim has expired.", 400);
   if (claim.customerAccountId && claim.customerAccountId.toString() !== customerAccountId) {
     throw createHttpError("This claim is already linked to a different account.", 409);
@@ -153,7 +154,14 @@ const fulfillPendingClaim = async ({ pendingClaimId, organizationId, customerAcc
   if (!claim) {
     throw createHttpError("Claim not found.", 404);
   }
-  if (claim.fulfilled) throw createHttpError("This claim has already been used.", 400);
+  // Reachable by a benign race, not just a stale/replayed request: the
+  // claim tab can be backgrounded (e.g. to open the emailed verify link),
+  // the server-side autoFulfillForAccount can fulfill it the moment
+  // verification lands, and the tab can then resume/reload and try to
+  // fulfill the very claim it's already been granted. The code lets the
+  // client tell "genuinely already used" apart from "already used BY ME,
+  // successfully" and show success instead of an error for the latter.
+  if (claim.fulfilled) throw createHttpError("This claim has already been used.", 400, "CLAIM_ALREADY_FULFILLED");
   if (claim.expiresAt.getTime() <= Date.now()) throw createHttpError("This claim has expired.", 400);
 
   if (claim.customerAccountId && claim.customerAccountId.toString() !== customerAccountId) {

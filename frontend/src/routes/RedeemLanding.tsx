@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Gift, Loader2 } from "lucide-react";
+import { ChevronLeft, Gift, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useTenant } from "../context/TenantContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
@@ -38,7 +38,7 @@ export default function RedeemLanding() {
 
   if (!token) {
     return (
-      <Shell title="No redeem code">
+      <Shell title="No redeem code" backTo={tenantPath(companySlug, outletSlug)}>
         <p className="text-sm text-[var(--muted)]">
           Ask the counter to bring up the redeem QR, then scan it with your camera.
         </p>
@@ -48,7 +48,7 @@ export default function RedeemLanding() {
 
   if (!globalAccount) {
     return (
-      <Shell title="Sign in to redeem">
+      <Shell title="Sign in to redeem" backTo={tenantPath(companySlug, outletSlug)}>
         <p className="mb-5 text-sm text-[var(--muted)]">
           Your points live with your account — sign in and scan again.
         </p>
@@ -96,7 +96,7 @@ export default function RedeemLanding() {
   const loading = balanceLoading || catalogLoading;
 
   return (
-    <Shell title={`Redeem at ${tenant?.name ?? "this outlet"}`}>
+    <Shell title={`Redeem at ${tenant?.name ?? "this outlet"}`} backTo={tenantPath(companySlug, outletSlug, "dashboard")}>
       <div className="mb-5 rounded-3xl bg-[var(--surface-container)] px-5 py-4 text-center">
         <div className="text-xs font-bold uppercase tracking-wider text-[var(--soft)]">Your balance</div>
         <div className="mt-1 font-display text-3xl font-extrabold" style={{ color: "var(--brand)" }}>
@@ -157,10 +157,24 @@ export default function RedeemLanding() {
   );
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+function Shell({
+  title,
+  backTo,
+  children,
+}: {
+  title: string;
+  backTo: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-h-screen justify-center bg-[var(--bg)] px-5 py-10">
       <div className="w-full max-w-md">
+        <Link
+          to={backTo}
+          className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[var(--muted)] hover:text-[var(--ink)]"
+        >
+          <ChevronLeft className="h-4 w-4" /> Back
+        </Link>
         <h1 className="mb-5 font-display text-2xl font-extrabold text-[var(--ink)]">{title}</h1>
         {children}
       </div>

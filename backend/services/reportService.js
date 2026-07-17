@@ -284,5 +284,6 @@ module.exports = {
   getPointsExpiredCenti,
   buildSummaryWorkbook,
   buildCustomersWorkbook,
-  buildTransactionsWorkbook
+  buildTransactionsWorkbook,
+  resolveDateRange
 };

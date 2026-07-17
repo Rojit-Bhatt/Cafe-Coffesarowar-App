@@ -6,7 +6,6 @@ import { tenantPath } from "../lib/tenantPath";
 export default function BusinessLanding() {
   const { companySlug, slug, tenant } = useTenant();
   const branding = tenant?.branding;
-  const program = tenant?.program;
   const initial = (tenant?.name || "?").charAt(0).toUpperCase();
 
   return (
@@ -44,13 +43,7 @@ export default function BusinessLanding() {
               How it works
             </div>
             <p className="text-[15px] leading-relaxed text-[var(--ink)]">
-              Every visit earns points on what you spend
-              {program?.earnPercent === 100
-                ? " — 1 point per rupee"
-                : program?.earnPercent
-                  ? ` — ${program.earnPercent}% of your bill back`
-                  : ""}
-              . Spend them on the good stuff, no paper card to lose.
+              Every visit earns points on what you spend. Spend them on the good stuff, no paper card to lose.
             </p>
           </div>
 

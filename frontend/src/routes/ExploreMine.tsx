@@ -77,16 +77,11 @@ function MembershipCard({ membership: m }: { membership: MyTenantMembership }) {
       </div>
       {/* No progress bar: a points balance has no target to fill toward, and
           inventing one would be inventing a number the outlet never set. */}
-      <div className="flex items-end justify-between">
-        <div>
-          <div className="font-display text-3xl font-extrabold leading-none" style={{ color: m.branding.primaryColor }}>
-            {formatPoints(m.balance)}
-          </div>
-          <div className="mt-1 text-xs text-[var(--muted)]">points</div>
+      <div>
+        <div className="font-display text-3xl font-extrabold leading-none" style={{ color: m.branding.primaryColor }}>
+          {formatPoints(m.balance)}
         </div>
-        <span className="rounded-full bg-[var(--surface-container)] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[var(--muted)]">
-          {m.earnPercent === 100 ? "1 pt / Rs 1" : `${m.earnPercent}% back`}
-        </span>
+        <div className="mt-1 text-xs text-[var(--muted)]">points</div>
       </div>
     </Link>
   );

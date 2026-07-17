@@ -1,7 +1,11 @@
+const ExcelJS = require("exceljs");
+const Company = require("../models/Company");
 const Organization = require("../models/Organization");
 const User = require("../models/User");
+const CustomerAccount = require("../models/CustomerAccount");
 const PointsTransaction = require("../models/PointsTransaction");
 const { toPoints } = require("../utils/pointsMath");
+const { resolveDateRange } = require("./reportService");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
@@ -27,15 +31,23 @@ const getPlatformAnalytics = async () => {
   const previousRange = { $gte: previousStart, $lte: currentStart };
 
   const [
-    businessesTotal,
-    businessesActiveOrgs,
+    companiesTotal,
+    outletsTotal,
+    outletsActiveOrgs,
+    customersTotal,
     newCustomersCurrent,
     newCustomersPrevious,
     txnsCurrent,
     txnsPrevious
   ] = await Promise.all([
+    Company.countDocuments({}),
     Organization.countDocuments({}),
     Organization.find({ status: "active" }),
+    // The global identity count — distinct people, not per-outlet
+    // memberships, which would double-count anyone who belongs to more
+    // than one outlet (exactly what the isolation-test customer "bikash"
+    // is seeded to exercise).
+    CustomerAccount.countDocuments({}),
     User.countDocuments({ role: "customer", createdAt: currentRange }),
     User.countDocuments({ role: "customer", createdAt: previousRange }),
     PointsTransaction.find({ createdAt: currentRange }),
@@ -69,8 +81,12 @@ const getPlatformAnalytics = async () => {
   }));
 
   return {
-    businessesTotal,
-    businessesActive: businessesActiveOrgs.length,
+    // Point-in-time totals, not flows — deliberately no trend badge, same
+    // reasoning as pointsOutstanding on the outlet-level dashboard.
+    companiesTotal,
+    outletsTotal,
+    outletsActive: outletsActiveOrgs.length,
+    customersTotal,
     newCustomers: { value: newCustomersCurrent, trend: weekOverWeekTrend(newCustomersCurrent, newCustomersPrevious) },
     pointsIssued: { value: toPoints(pointsCurrent), trend: weekOverWeekTrend(pointsCurrent, pointsPrevious) },
     revenue: { value: Math.round(revenueCurrent * 100) / 100, trend: weekOverWeekTrend(revenueCurrent, revenuePrevious) },
@@ -79,4 +95,98 @@ const getPlatformAnalytics = async () => {
   };
 };
 
-module.exports = { getPlatformAnalytics };
+// A date-ranged, per-company breakdown across the WHOLE platform — the
+// cross-company counterpart to companyReportService.getCompanyRollup, which
+// is deliberately scoped to one company at a time (company-private, never
+// reachable outside /api/company). Same per-outlet-then-sum-in-JS approach,
+// since the mock DB has no aggregation pipeline.
+//
+// Deliberately flows only (new customers, points issued/redeemed, revenue,
+// redemptions) — no points-outstanding/expired column. Those are balance
+// concepts, and points never pool even within one company's own outlets
+// (see getCompanyRollup's header comment), so summing a "balance" across
+// companies would be adding up numbers that were never poolable to begin
+// with — same reasoning, one level up.
+const getPlatformCompanyReportRows = async ({ startDate, endDate } = {}) => {
+  const { start, end } = resolveDateRange(startDate, endDate);
+  const range = { $gte: start, $lte: end };
+
+  const companies = await Company.find({});
+
+  const rows = await Promise.all(
+    companies.map(async (company) => {
+      const outlets = await Organization.find({ companyId: company._id });
+
+      const perOutlet = await Promise.all(
+        outlets.map(async (outlet) => {
+          const newCustomers = await User.countDocuments({
+            role: "customer",
+            organizationId: outlet._id,
+            createdAt: range
+          });
+          const txns = await PointsTransaction.find({ organizationId: outlet._id, createdAt: range });
+          const earns = txns.filter((t) => t.type === "earn");
+          const redeems = txns.filter((t) => t.type === "redeem");
+
+          return {
+            archived: outlet.status === "archived",
+            newCustomers,
+            pointsIssuedCenti: earns.reduce((sum, t) => sum + t.pointsCenti, 0),
+            pointsRedeemedCenti: redeems.reduce((sum, t) => sum - t.pointsCenti, 0),
+            revenue: earns.reduce((sum, t) => sum + (t.billAmount || 0), 0),
+            redemptionCount: redeems.length
+          };
+        })
+      );
+
+      const totals = perOutlet.reduce(
+        (acc, o) => ({
+          newCustomers: acc.newCustomers + o.newCustomers,
+          pointsIssuedCenti: acc.pointsIssuedCenti + o.pointsIssuedCenti,
+          pointsRedeemedCenti: acc.pointsRedeemedCenti + o.pointsRedeemedCenti,
+          revenue: acc.revenue + o.revenue,
+          redemptionCount: acc.redemptionCount + o.redemptionCount
+        }),
+        { newCustomers: 0, pointsIssuedCenti: 0, pointsRedeemedCenti: 0, revenue: 0, redemptionCount: 0 }
+      );
+
+      return {
+        company: company.name,
+        status: company.status,
+        outlets: perOutlet.filter((o) => !o.archived).length,
+        newCustomers: totals.newCustomers,
+        // Centipoints never leave the backend — convert once, here.
+        pointsIssued: toPoints(totals.pointsIssuedCenti),
+        pointsRedeemed: toPoints(totals.pointsRedeemedCenti),
+        revenue: Math.round(totals.revenue * 100) / 100,
+        redemptions: totals.redemptionCount
+      };
+    })
+  );
+
+  return { rows: rows.sort((a, b) => b.revenue - a.revenue), start, end };
+};
+
+const buildPlatformCompanyReportWorkbook = async ({ rows, start, end }) => {
+  const workbook = new ExcelJS.Workbook();
+  // The date range lives in the sheet name (Excel truncates ~31 chars) so
+  // it's visible without adding a preamble row that would push the real
+  // header off row 1 — row 1 = header is what lets a plain admin sort/
+  // filter this in Excel, and is the convention the test helpers assume.
+  const sheet = workbook.addWorksheet(
+    `${start.toISOString().slice(0, 10)} to ${end.toISOString().slice(0, 10)}`.slice(0, 31)
+  );
+  sheet.addRow([
+    "Company", "Status", "Outlets", "New Customers",
+    "Points Issued", "Points Redeemed", "Revenue", "Redemptions"
+  ]);
+  for (const r of rows) {
+    sheet.addRow([
+      r.company, r.status, r.outlets, r.newCustomers,
+      r.pointsIssued, r.pointsRedeemed, r.revenue, r.redemptions
+    ]);
+  }
+  return workbook.xlsx.writeBuffer();
+};
+
+module.exports = { getPlatformAnalytics, getPlatformCompanyReportRows, buildPlatformCompanyReportWorkbook };

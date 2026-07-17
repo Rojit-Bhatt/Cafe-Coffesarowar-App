@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search, MapPin, Coins } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { useDiscover, type DiscoverBusiness } from "../hooks/useDiscover";
 import { useMyTenants } from "../hooks/useMyTenants";
 import { formatPoints } from "../hooks/usePoints";
@@ -209,13 +209,7 @@ function BusinessCard({ business }: { business: DiscoverBusiness }) {
         <div className="mb-1 flex items-center justify-between gap-2">
           <h3 className="truncate font-display text-lg font-bold text-[var(--ink)]">{business.name}</h3>
         </div>
-        <div className="mb-3 flex items-center gap-1.5 text-sm" style={{ color: business.branding.primaryColor }}>
-          <Coins className="h-3.5 w-3.5" />
-          {business.program.earnPercent === 100
-            ? "1 point per Rs 1"
-            : `${business.program.earnPercent}% back in points`}
-        </div>
-        <div className="flex items-center gap-1.5">
+        <div className="mb-3 flex items-center gap-1.5">
           {isNew && (
             <span className="rounded bg-[var(--surface-container-high)] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-[var(--ink)]">
               New

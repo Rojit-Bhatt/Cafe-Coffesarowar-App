@@ -8,6 +8,7 @@ const {
   patchOutlet,
   getAuditLog,
   getAnalytics,
+  downloadCompaniesReport,
   getPublicPlatformContact,
   getPlatformContactAdmin,
   patchPlatformContact
@@ -30,6 +31,7 @@ router.patch("/outlets/:outletId", verifyToken, isPlatformOwner, patchOutlet);
 
 router.get("/audit-log", verifyToken, isPlatformAdmin, getAuditLog);
 router.get("/analytics", verifyToken, isPlatformAdmin, getAnalytics);
+router.get("/analytics/companies-report/download", verifyToken, isPlatformAdmin, downloadCompaniesReport);
 router.get("/admins", verifyToken, isPlatformOwner, getAdmins);
 router.post("/admins", verifyToken, isPlatformOwner, postAdmin);
 router.delete("/admins/:id", verifyToken, isPlatformOwner, deleteAdmin);

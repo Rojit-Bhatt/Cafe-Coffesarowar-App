@@ -11,7 +11,11 @@ const {
   updateContact
 } = require("../services/platformConfigService");
 const { listRecent } = require("../services/platformAuditService");
-const { getPlatformAnalytics } = require("../services/platformAnalyticsService");
+const {
+  getPlatformAnalytics,
+  getPlatformCompanyReportRows,
+  buildPlatformCompanyReportWorkbook
+} = require("../services/platformAnalyticsService");
 const User = require("../models/User");
 
 const platformLogin = async (req, res, next) => {
@@ -117,6 +121,21 @@ const getAnalytics = async (req, res, next) => {
   }
 };
 
+const downloadCompaniesReport = async (req, res, next) => {
+  try {
+    const { rows, start, end } = await getPlatformCompanyReportRows({
+      startDate: req.query.startDate,
+      endDate: req.query.endDate
+    });
+    const buffer = await buildPlatformCompanyReportWorkbook({ rows, start, end });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=\"companies-report.xlsx\"");
+    res.send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getPublicPlatformContact = async (req, res, next) => {
   try {
     const contact = await getContact();
@@ -153,6 +172,7 @@ module.exports = {
   patchOutlet,
   getAuditLog,
   getAnalytics,
+  downloadCompaniesReport,
   getPublicPlatformContact,
   getPlatformContactAdmin,
   patchPlatformContact

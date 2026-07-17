@@ -2,13 +2,17 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
-import { VerifyEmailGate } from "./VerifyEmailGate";
 import { SuspendedOverlay } from "./SuspendedOverlay";
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading, logout } = useAdminAuth();
   const navigate = useNavigate();
-  const { slug } = useParams();
+  // Not useTenant() — that throws outside a TenantProvider, and AdminGuard
+  // also has to survive a settings 401 before we know the tenant resolved at
+  // all. Raw params only, matching what the two-segment route actually
+  // provides (companySlug + outletSlug — there is no bare :slug anywhere).
+  const { companySlug, outletSlug } = useParams();
+  const tenantSlugPath = companySlug && outletSlug ? `/${companySlug}/${outletSlug}` : null;
   const { data: settings, isLoading: settingsLoading, isError: settingsError, error: settingsErrorObj } = useAdminSettings();
   const suspended = (settingsErrorObj as (Error & { code?: string }) | null)?.code === "TENANT_SUSPENDED";
 
@@ -28,9 +32,9 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && (!user || user.role !== "business_admin")) {
-      navigate(slug ? `/${slug}/admin/login` : "/");
+      navigate(tenantSlugPath ? `${tenantSlugPath}/admin/login` : "/");
     }
-  }, [user, isLoading, navigate, slug]);
+  }, [user, isLoading, navigate, tenantSlugPath]);
 
   // A cached token can outlive the session it names (backend data reset,
   // token expiry). Without this, a stale token stuck the guard in a
@@ -41,9 +45,9 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (settingsError && user && !suspended && !suspendedLatched) {
       logout();
-      navigate(slug ? `/${slug}/admin/login` : "/");
+      navigate(tenantSlugPath ? `${tenantSlugPath}/admin/login` : "/");
     }
-  }, [settingsError, user, suspended, suspendedLatched, logout, navigate, slug]);
+  }, [settingsError, user, suspended, suspendedLatched, logout, navigate, tenantSlugPath]);
 
   if (isLoading || (user && user.role === "business_admin" && settingsLoading && !suspended && !suspendedLatched)) {
     return (
@@ -63,14 +67,17 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="relative min-h-screen">
         <div className="pointer-events-none select-none blur-sm">{children}</div>
-        <SuspendedOverlay onLogout={() => { logout(); navigate(slug ? `/${slug}/admin/login` : "/"); }} />
+        <SuspendedOverlay onLogout={() => { logout(); navigate(tenantSlugPath ? `${tenantSlugPath}/admin/login` : "/"); }} />
       </div>
     );
   }
 
-  if (settings && !settings.adminEmailVerified) {
-    return <VerifyEmailGate />;
-  }
+  // No re-check of adminEmailVerified here: adminAuthService.adminLogin
+  // already refuses an unverified admin with 403 EMAIL_NOT_VERIFIED before
+  // issuing a token, so anyone reaching this point with a valid tenant JWT
+  // is, by construction, already verified. Re-checking here was gating
+  // already-verified admins on a denormalized field that isn't guaranteed
+  // to be in sync moment-to-moment with the source of truth.
 
   return <>{children}</>;
 }

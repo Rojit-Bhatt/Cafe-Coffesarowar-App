@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2, X, Check, Gift, UtensilsCrossed } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, Gift } from "lucide-react";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 import { apiRequest } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
+import { useTenant } from "../../context/TenantContext";
+import { tenantPath } from "../../lib/tenantPath";
 import { formatPoints } from "../../hooks/usePoints";
 import { Skeleton } from "../../components/ui/skeleton";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -16,14 +19,6 @@ interface RewardItem {
   pointsPrice: number;
   isActive: boolean;
   sortOrder: number;
-}
-
-interface MenuItem {
-  _id: string;
-  name: string;
-  price: number | null;
-  pointsPrice: number | null;
-  isAvailable: boolean;
 }
 
 interface RewardDraft {
@@ -45,20 +40,6 @@ function useRewards() {
         role: "admin",
       });
       return res.data || [];
-    },
-  });
-}
-
-function useMenuForRewards() {
-  const { user } = useAdminAuth();
-  const orgId = user?.organizationId ?? null;
-  return useQuery<MenuItem[]>({
-    queryKey: ["adminMenu", orgId],
-    queryFn: async () => {
-      const res = await apiRequest<{ success: boolean; items: MenuItem[] }>("/api/admin/menu", {
-        role: "admin",
-      });
-      return res.items || [];
     },
   });
 }
@@ -100,14 +81,13 @@ function RewardFields({ draft, onChange }: { draft: RewardDraft; onChange: (n: R
   );
 }
 
-// Two sources feed one customer-facing catalog: menu items given a points
-// price, and standalone rewards that only exist for points. Both are shown
-// here so an admin can see the whole thing in one place — which is the only
-// place the split is visible at all.
+// Two sources feed one customer-facing catalog: standalone rewards (here)
+// and menu items given a points price (on the Menu page itself, right next
+// to the item it applies to — see MenuManagement.tsx).
 export default function AdminRewards() {
   const qc = useQueryClient();
+  const { companySlug, outletSlug } = useTenant();
   const { data: rewards = [], isLoading } = useRewards();
-  const { data: menu = [] } = useMenuForRewards();
 
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState<RewardDraft>(emptyDraft());
@@ -115,10 +95,7 @@ export default function AdminRewards() {
   const [editDraft, setEditDraft] = useState<RewardDraft>(emptyDraft());
   const [confirmDelete, setConfirmDelete] = useState<RewardItem | null>(null);
 
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["adminRewards"] });
-    qc.invalidateQueries({ queryKey: ["adminMenu"] });
-  };
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["adminRewards"] });
 
   const create = useMutation({
     mutationFn: (d: RewardDraft) =>
@@ -134,13 +111,6 @@ export default function AdminRewards() {
     mutationFn: (id: string) => apiRequest(`/api/admin/rewards/${id}`, { method: "DELETE", role: "admin" }),
     onSuccess: invalidate,
   });
-  const setMenuPoints = useMutation({
-    mutationFn: ({ id, pointsPrice }: { id: string; pointsPrice: number | null }) =>
-      apiRequest(`/api/admin/menu/${id}`, { method: "PATCH", role: "admin", body: { pointsPrice } }),
-    onSuccess: invalidate,
-  });
-
-  const redeemableMenu = menu.filter((m) => m.pointsPrice !== null && m.pointsPrice !== undefined);
 
   return (
     <div className="max-w-[760px]">
@@ -291,60 +261,17 @@ export default function AdminRewards() {
       <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wider text-[var(--soft)]">
         Menu items redeemable for points
       </h2>
-      <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
-        {menu.length === 0 ? (
-          <div className="px-5 py-8 text-center text-sm text-[var(--muted)]">
-            No menu items yet.
-          </div>
-        ) : (
-          menu.map((m) => {
-            const points = m.pointsPrice === null || m.pointsPrice === undefined ? "" : String(m.pointsPrice);
-            return (
-              <div
-                key={m._id}
-                className="flex items-center gap-3.5 border-b border-[var(--line)] px-5 py-3.5 last:border-b-0"
-              >
-                <span
-                  className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl"
-                  style={{ background: "var(--surface-container)", color: "var(--soft)" }}
-                >
-                  <UtensilsCrossed className="h-4 w-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold text-[var(--ink)]">{m.name}</div>
-                  <div className="text-[13px] text-[var(--muted)]">
-                    {m.price !== null ? `Rs ${m.price}` : "No price"}
-                  </div>
-                </div>
-                <label className="flex flex-shrink-0 items-center gap-2 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-3 py-2">
-                  <input
-                    type="number"
-                    min={0}
-                    defaultValue={points}
-                    placeholder="—"
-                    onBlur={(e) => {
-                      const raw = e.target.value.trim();
-                      const next = raw === "" ? null : Number(raw);
-                      const current = m.pointsPrice ?? null;
-                      if (next === current) return;
-                      setMenuPoints.mutate({ id: m._id, pointsPrice: next });
-                      toast.success(next === null ? `${m.name} is menu-only now.` : `${m.name} costs ${next} points.`);
-                    }}
-                    className="w-20 bg-transparent text-sm focus:outline-none"
-                  />
-                  <span className="text-xs text-[var(--muted)]">points</span>
-                </label>
-              </div>
-            );
-          })
-        )}
-      </div>
-      <p className="mt-2.5 text-[13px] text-[var(--soft)]">
-        Leave a menu item's points blank to keep it on the menu but out of the rewards catalog.
-        {redeemableMenu.length > 0
-          ? ` ${redeemableMenu.length} item${redeemableMenu.length === 1 ? " is" : "s are"} redeemable.`
-          : ""}
-      </p>
+      <Link
+        to={tenantPath(companySlug, outletSlug, "admin/menu")}
+        className="shadow-ambient stamp-interactive flex items-center justify-between gap-3 rounded-3xl bg-[var(--surface)] px-5 py-4 text-sm"
+      >
+        <span className="text-[var(--muted)]">
+          Give a menu item a points price right on the Menu page — it shows up here automatically.
+        </span>
+        <span className="flex-shrink-0 font-bold" style={{ color: "var(--brand)" }}>
+          Go to Menu →
+        </span>
+      </Link>
 
       <ConfirmDialog
         open={Boolean(confirmDelete)}
