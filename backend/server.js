@@ -56,6 +56,16 @@ const adminAuthRoutes = require("./routes/adminAuthRoutes");
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// In production the app runs behind Render's proxy, so the real client IP is
+// in X-Forwarded-For, not the socket. Trust exactly one hop so req.ip (and
+// the rate limiter that keys on it) sees the actual client rather than the
+// proxy — otherwise every request would share one IP and get throttled
+// together. Left off in dev/test (direct connections), which is also what
+// lets a single test process trip a rate-limit threshold on purpose.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 // Configurable via FRONTEND_ORIGINS (comma-separated) in production.
 const ALLOWED_ORIGINS = (
   process.env.FRONTEND_ORIGINS ||

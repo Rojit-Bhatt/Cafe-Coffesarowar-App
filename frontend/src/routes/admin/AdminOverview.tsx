@@ -14,7 +14,7 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { apiRequest, tenantHeaders } from "../../lib/api";
+import { apiRequest, apiUrl, tenantHeaders } from "../../lib/api";
 import { useAdminSettings } from "../../hooks/useAdminSettings";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { tenantPath } from "../../lib/tenantPath";
@@ -134,7 +134,7 @@ export default function AdminOverview() {
 
   const downloadExcel = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const res = await fetch("/api/admin/reports/customers/download", {
+    const res = await fetch(apiUrl("/api/admin/reports/customers/download"), {
       headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
     });
     const blob = await res.blob();

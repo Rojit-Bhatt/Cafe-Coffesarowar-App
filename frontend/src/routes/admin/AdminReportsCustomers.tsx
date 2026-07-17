@@ -1,10 +1,10 @@
 import { Download } from "lucide-react";
-import { tenantHeaders } from "../../lib/api";
+import { apiUrl, tenantHeaders } from "../../lib/api";
 
 export default function AdminReportsCustomers() {
   const download = async () => {
     const token = localStorage.getItem("admin_auth_token");
-    const res = await fetch("/api/admin/reports/customers/download", {
+    const res = await fetch(apiUrl("/api/admin/reports/customers/download"), {
       headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() },
     });
     const blob = await res.blob();

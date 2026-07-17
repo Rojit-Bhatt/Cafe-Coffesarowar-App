@@ -15,10 +15,11 @@ const {
 } = require("../controllers/platformController");
 const { getAdmins, postAdmin, deleteAdmin } = require("../controllers/platformTeamController");
 const { verifyToken, isPlatformAdmin, isPlatformOwner } = require("../middleware/authMiddleware");
+const { authLimiter } = require("../middleware/rateLimitMiddleware");
 
 const router = express.Router();
 
-router.post("/login", platformLogin);
+router.post("/login", authLimiter, platformLogin);
 
 // The platform registers companies; each company then registers its own
 // outlets. The platform keeps read access to every outlet and can still

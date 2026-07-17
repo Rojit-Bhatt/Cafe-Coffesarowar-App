@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, UserPlus, Coins, Gift, Hourglass, Wallet, Receipt } from "lucide-react";
-import { apiRequest, tenantHeaders } from "../../lib/api";
+import { apiRequest, apiUrl, tenantHeaders } from "../../lib/api";
 import { useAdminAuth } from "../../context/AdminAuthContext";
 import { Skeleton } from "../../components/ui/skeleton";
 
@@ -44,7 +44,7 @@ export default function AdminReportsSummary() {
   const download = async () => {
     const token = localStorage.getItem("admin_auth_token");
     const res = await fetch(
-      `/api/admin/reports/summary/download?startDate=${startDate}&endDate=${endDate}`,
+      apiUrl(`/api/admin/reports/summary/download?startDate=${startDate}&endDate=${endDate}`),
       { headers: { Authorization: `Bearer ${token}`, ...tenantHeaders() } },
     );
     const blob = await res.blob();

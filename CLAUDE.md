@@ -82,13 +82,15 @@ One collection per identity is what makes email uniqueness a single enforceable 
 
 **Two ways the active tenant is determined — do not confuse them:**
 1. **Public routes** (`/api/tenant`, `/api/menu`, `/api/auth`) use `resolveTenant` (`middleware/tenantMiddleware.js`): reads `X-Company-Slug` + `X-Outlet-Slug` headers → `:companySlug`/`:outletSlug` params → Host subdomain, then `Company.findOne({slug})` → `Organization.findOne({companyId, slug})`. Both are top-level equality, so mock-DB safe. Sets `req.company`, `req.organization`, `req.organizationId`. Suspended → 403 `TENANT_SUSPENDED`.
-2. **Authenticated loyalty routes** (`/api/admin`, `/api/stamps`, `/api/vouchers`) take the tenant from the **JWT**, NOT the URL. A user can only ever act within their own tenant regardless of any client-supplied slug — **a security boundary; don't replace it with slug-based resolution.**
+2. **Authenticated loyalty routes** (`/api/admin`, `/api/points`) take the tenant from the **JWT**, NOT the URL. A user can only ever act within their own tenant regardless of any client-supplied slug — **a security boundary; don't replace it with slug-based resolution.**
 
 **Unified admin login.** `POST /api/admin-auth/login` is slug-less: one email+password form for all staff. The backend looks up the `AdminAccount` and branches on `kind` — a company owner gets a company session and lands at `/company`; an outlet admin gets a tenant JWT and lands at `/[company]/[outlet]/admin`. No match → "not registered". Each outlet's credentials are independent (own hash, verified once) — there is no password copying or fan-out between them. An unverified admin is refused **at login** with 403 `EMAIL_NOT_VERIFIED`, not gated inside the console.
 
 **QR-as-link claim flow.** The QR staff generates (`GenerateQr.tsx`) encodes a real URL (`/[company]/[outlet]/claim?token=…`), not a bare token, so the phone's native camera opens it. Build these with `tenantUrl` (client) or `emailService.buildAuthLink` (server), never by hand — a one-segment URL resolves to a *company* and silently bounces to `/explore`. Both now throw or type-error rather than emit one. **Anything the app emails must point at a route that exists**: `tests/auth-links.js` captures every emitted link, resolves its slugs against the real tenant resolver, and checks slug-less staff links against `App.tsx`'s route table.
 
 A `PendingClaim`'s `_id` is **not** a secret — it's an ObjectId with a predictable per-process counter. `claimSecret` (returned once, only to whoever burned the 30s QR token) is what authorizes binding or reading a claim; the id only addresses the row. The claim page converts the scanned `DynamicQRToken` (30s, single-use) into a `PendingClaim` (15 min) — decoupling "how long the QR is scannable" from "how long the customer has to finish signing in." A brand-new signup's first earn stays pending until they verify their email (maybe minutes later, another device), at which point `pendingClaimService.autoFulfillForAccount` fulfills every pending claim for that account across all tenants.
+
+A mobile browser backgrounding (and later reloading) the claim tab — e.g. while the customer switches to their email app to tap the verify link — can race the claim page's own fulfill call against `autoFulfillForAccount` firing first. The already-fulfilled guard in `fulfillPendingClaim`/`linkPendingClaimToAccount` tags that specific case with `code: "CLAIM_ALREADY_FULFILLED"` (not a generic 400) so `ClaimLanding.tsx` can tell "genuinely stale claim" apart from "already succeeded, just tell them" and show the success screen instead of an error for what was, from the customer's side, a completed earn.
 
 ## The points loop
 
@@ -123,12 +125,20 @@ Two rules worth not breaking:
 - `Subscription.outletLimitAtPurchase` is **snapshotted at redemption**, never read live off the plan — a later plan edit must never retroactively strand an existing subscriber.
 - Expiry and the 5-day grace period are **always derived from `currentPeriodEnd` at read time**. No cron job exists or is needed anywhere in this codebase.
 
+## Platform-wide analytics
+
+`platformAnalyticsService.js` is the one surface where cross-tenant aggregation is deliberate, not a leak — every query there is missing an `organizationId`/`companyId` filter on purpose, for the platform admin overseeing the whole SaaS. It never exposes which specific tenant a customer belongs to, only aggregate counts/sums, so it doesn't violate the per-tenant isolation invariant.
+
+`getPlatformAnalytics()` returns both point-in-time totals (`companiesTotal`, `outletsTotal`/`outletsActive`, `customersTotal` — snapshots, no trend badge) and weekly-flow metrics (`newCustomers`, `pointsIssued`, `revenue`, `redemptions` — each with a week-over-week trend). `customersTotal` counts distinct `CustomerAccount`s, never summed `User` memberships, which would double-count anyone at more than one outlet.
+
+`getPlatformCompanyReportRows({startDate, endDate})` is the date-ranged counterpart, one row per company — the cross-company version of `companyReportService.getCompanyRollup` (which stays scoped to one company, company-private, reachable only via `/api/company`). Flows only (new customers, points issued/redeemed, revenue, redemptions); deliberately no points-outstanding/expired column, same reasoning `getCompanyRollup` already gives for why balances never roll up across outlets.
+
 ## Backend layering (enforced)
 
-`routes/ → controllers/ → services/ → models/`. Controllers are thin: parse request, call a service, format the response. **All business logic and multi-model writes live in `services/`.** Keep the atomic `findOneAndUpdate` style in `services/stampService.js` — the stamp claim uses a session + atomic guarded update to prevent double-stamping races.
+`routes/ → controllers/ → services/ → models/`. Controllers are thin: parse request, call a service, format the response. **All business logic and multi-model writes live in `services/`.** Keep the atomic `findOneAndUpdate` style in `services/pointsService.js` — earn and redeem each use a session + atomic guarded update to prevent double-award/double-spend races.
 
 Route groups mounted in `server.js`:
-- `/api/platform` — super-admin: register/list/manage companies + outlets (`isPlatformAdmin`); `/plans` and `/subscription-keys` nested under it.
+- `/api/platform` — super-admin: register/list/manage companies + outlets (`isPlatformAdmin`); `/plans` and `/subscription-keys` nested under it; `/analytics` and `/analytics/companies-report/download` for the cross-tenant rollup (see "Platform-wide analytics" below).
 - `/api/tenant` — public outlet branding+program lookup (`resolveTenant`).
 - `/api/menu` — public display-only menu (`resolveTenant`).
 - `/api/auth` — legacy tenant-scoped login (`resolveTenant`).
@@ -137,9 +147,11 @@ Route groups mounted in `server.js`:
 - `/api/account` — shared profile/password for any authenticated role (`verifyToken`).
 - `/api/customer-auth` — global customer identity: register/login/google/verify/reset (no tenant), `enter-tenant` (exchanges a global session for a tenant JWT, auto-provisioning the membership), plus `/explore`'s two reads — `discover` and `my-tenants` (`verifyGlobalSession` only, no tenant).
 - `/api/claim` — QR-as-link lifecycle: `start`, `:id/status`, `:id/fulfill` (tenant JWT only — `resolveTenant` deliberately unused).
-- `/api/admin` — outlet console: QR gen, redeem, customers, settings, menu CRUD (`isBusinessAdmin`).
-- `/api/stamps`, `/api/vouchers` — customer loyalty (tenant from JWT).
+- `/api/admin` — outlet console: QR gen, redeem, customers, settings, menu CRUD, rewards (`isBusinessAdmin`).
+- `/api/points` — customer loyalty: `claim`, `redeem`, `catalog`, `campaigns`, `balance`, `history` (tenant from JWT, never the URL).
 - `/api/reviews` — public Google reviews passthrough.
+
+**Rate limiting** (`middleware/rateLimitMiddleware.js`, `express-rate-limit`) is applied **per-route** on the abuse-prone unauthenticated endpoints only — `authLimiter` (20/15min/IP) on the three logins, `registrationLimiter` (10/hour/IP) on register/forgot-password/resend-verification. Never global (would throttle legit high-frequency traffic like the claim status poll). Both limiters share one per-IP bucket across the routes that use them, and use the in-memory store — correct for the single deployed instance; a shared store (Redis) is only needed if it ever scales to multiple instances. Keying needs the real client IP, so `server.js` sets `trust proxy` **in production only** (behind Render's proxy); left off in dev/test (direct connections), which is also what lets a single test process trip a threshold on purpose (`tests/rate-limiting.js`).
 
 **Dependency constraint:** `xlsx` is banned (unpatched CVEs GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9). Spreadsheet work uses **ExcelJS** (`menuService.js`, `reportService.js`) — an independent implementation, not a SheetJS wrapper like `node-xlsx`. Don't reintroduce it, directly or transitively.
 
@@ -147,9 +159,11 @@ Route groups mounted in `server.js`:
 
 ## Frontend
 
-React 19 + Vite + TS + Tailwind v4. TanStack Query for server state; React Context for session auth; React Hook Form + Zod for forms; React Hot Toast for alerts; `motion` (Framer Motion's successor) for animation; Recharts for charts. `components/ui/` is a shadcn/Radix kit — reuse it, don't reimplement primitives.
+React 19 + Vite + TS + Tailwind v4. TanStack Query for server state; React Context for session auth; React Hook Form + Zod for forms; React Hot Toast for alerts; `motion` (Framer Motion's successor) for animation; Recharts for charts. `components/ui/` is a shadcn/Radix kit — reuse it, don't reimplement primitives. **Only 9 primitives are actually kept** (`alert`, `alert-dialog`, `button`, `dialog`, `input`, `separator`, `sheet`, `skeleton`, `tooltip`) — the rest of the default shadcn scaffold (accordion, calendar, carousel, select, tabs, sidebar, …) was never wired into the app and was removed as dead code, along with the Radix packages that backed it. If a feature genuinely needs one of those primitives, re-add it (and its Radix dependency) deliberately rather than assuming it's already in the tree.
 
-`lib/api.ts` `apiRequest()` is the single fetch wrapper: it auto-selects the auth token by path/role and attaches `X-Company-Slug`/`X-Outlet-Slug` (set via `setTenantRef`). localStorage keys: `platform_auth_token`, `admin_auth_token`, `customer_auth_token`, `customer_global_session`, `company_session`.
+`lib/api.ts` `apiRequest()` is the single fetch wrapper: it auto-selects the auth token by path/role and attaches `X-Company-Slug`/`X-Outlet-Slug` (set via `setTenantRef`). localStorage keys: `platform_auth_token`, `admin_auth_token`, `customer_auth_token`, `customer_global_session`, `company_session`. Both `apiRequest` and the exported `apiUrl(path)` helper prefix `VITE_API_BASE_URL` (empty in dev — the Vite proxy forwards `/api`; the backend's absolute URL in production, where the frontend is served from a different origin than the API). The handful of raw-`fetch` file-download sites (`.xlsx` blobs, which bypass `apiRequest`) must use `apiUrl()` so they hit the backend, not the static-frontend origin.
+
+**PWA.** The app is an installable PWA via `vite-plugin-pwa` (config in `vite.config.ts`). It's **one global "Stampd" app** — `start_url: "/explore"`, `scope: "/"`, a single static manifest — not one-app-per-cafe (outlet slugs aren't unique platform-wide, so no single outlet a global install could point at; per-outlet installs would need dynamically-served per-tenant manifests, deliberately out of scope). Installable + cached app shell + fast relaunch, but **online for loyalty actions** — the service worker only precaches the built static shell, never `/api` responses, so balances/claims are always live. Icons are generated from the coin logo by `frontend/scripts/generate-pwa-icons.mjs` (a `sharp`-based devDependency script, run manually when the logo changes; PNGs committed to `public/`). iOS install metas live in `index.html` (iOS ignores the manifest for those). `public/_redirects` gives Cloudflare Pages the SPA history fallback so client-side-routed deep links (a scanned claim URL) resolve to the shell.
 
 **`lib/tenantPath.ts` builds every tenant URL** — `tenantPath(company, outlet, sub)` / `tenantUrl(origin, …)` for QR codes and emails. Don't interpolate `/${slug}/…` by hand: a missing company segment should be a type error, not a URL that silently resolves elsewhere.
 
@@ -178,15 +192,17 @@ Use the shared utilities instead of ad hoc shadows/hover states: `.shadow-ambien
 
 **Logo:** `components/shared/StampdLogo.tsx` — hand-built SVG (a coin earned atop another, the top one struck with a point). Colors are fixed (`#1F1B18`/`#C15D2C`/`#F3ECE2`), **not** tenant-themed: this is the platform's identity, distinct from `--brand`. Also inlined as the favicon in `index.html` — change both together.
 
-**Motion** ("stamp-claim physics"): weighted, celebratory spring entrances (`type: "spring"`), always guarded by `useReducedMotion()`. `components/customer/StampCelebration.tsx` is the shared earn moment reused by both `ScannerModal.tsx` and `ClaimLanding.tsx` — extend it, don't duplicate it. Other signature moments: the voucher-redeem "hole punch" (`RedeemVoucher.tsx`), the login/logout card flip (`CustomerSettings.tsx`).
+**Motion** ("stamp-claim physics"): weighted, celebratory spring entrances (`type: "spring"`), always guarded by `useReducedMotion()`. `components/customer/PointsCelebration.tsx` is the one shared earn/redeem moment (a `variant` prop switches the copy/icon) reused by `ScannerModal.tsx`, `ClaimLanding.tsx`, `RedeemLanding.tsx`, and `RedeemPoints.tsx` — extend it, don't duplicate it. Other signature moment: the login/logout card flip (`CustomerSettings.tsx`).
 
 The reference screens this system came from live at `frontend design/` (8 `code.html`+`screen.png` pairs plus `stampd_core/DESIGN.md`) — useful for token values and motion rationale, but **the shipped code wins** where they've diverged (e.g. headings are bold/extrabold, not the regular weight `DESIGN.md` specifies).
 
 ## What's left
 
-Deploy (Vercel + Atlas) and LAN HTTPS for on-phone testing. Nothing in the loyalty model is outstanding.
+**Deploy.** Design is locked in `docs/superpowers/specs/2026-07-19-production-scalability-hardening-design.md`: **split hosting** — backend on **Render** (a persistent Node host; the app is a normal `app.listen()` Express server, deliberately NOT adapted to serverless), frontend on **Cloudflare Pages**. Code-side hardening for this (rate limiting, `trust proxy`, PWA, `apiUrl` for split origins) is **done**; what remains is operational (create Atlas cluster, create Render service + env vars, deploy to Cloudflare Pages with `VITE_API_BASE_URL`, swap the personal-Gmail SMTP for a transactional provider, update Google OAuth origins to the prod domain, point DNS) — the spec's "Deploy checklist" section walks through it in order. Nothing in the loyalty model is outstanding.
 
 Known gap: `backend/.env` carries a real `MONGODB_URI`, so `npm run dev` tries Atlas and fails on IP whitelisting rather than falling back to the mock. Tests are unaffected (`bootServer` forces `MONGODB_URI=""`); for a local UI run, start the backend with `MONGODB_URI="" npm run dev -w backend`.
+
+**Real-device / no-seed testing**: `SEED_DEMO_DATA=false` (plus `PLATFORM_ADMIN_EMAIL`/`PLATFORM_ADMIN_PASSWORD`) skips `demoSeed.js` entirely and bootstraps only the one platform admin `ensurePlatformAdmin` needs to exist — no demo companies/outlets/customers. Pair with `FRONTEND_ORIGINS`/`APP_BASE_URL` in `.env` pointed at the Mac's LAN IP so QR codes and emailed links resolve from a phone on the same WiFi, and open the admin console via that LAN IP (not `localhost`) so window.location.origin-derived links are correct. Prefer `node server.js` over `npm run dev`'s `node --watch` for a long test session — the in-memory mock DB has no persistence, and `--watch` silently wipes it on any file touch under `backend/`, mid-session, with no warning.
 
 ## Stale docs
 

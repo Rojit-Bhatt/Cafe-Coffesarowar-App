@@ -10,20 +10,28 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      // apple-touch-icon isn't in the manifest (iOS reads it from a <link> in
+      // index.html instead) — list it here so the service worker still
+      // precaches it.
+      includeAssets: ["apple-touch-icon.png"],
       manifest: {
-        name: "Cafe Loyalty",
-        short_name: "Cafe",
-        theme_color: "#000000",
-        background_color: "#000000",
+        name: "Stampd",
+        short_name: "Stampd",
+        description: "Your points at every place you visit — scan, earn, redeem.",
+        // Dark ink status bar (always readable) over the app's warm-cream
+        // splash. The one installed "Stampd" app opens to /explore — the
+        // customer's list of every place they've joined — not any single
+        // outlet (outlet slugs aren't unique platform-wide, so there is no
+        // one outlet a global install could point at).
+        theme_color: "#1F1B18",
+        background_color: "#F3ECE2",
         display: "standalone",
-        start_url: "/dashboard",
-        scope: "/dashboard",
+        start_url: "/explore",
+        scope: "/",
         icons: [
-          {
-            src: "/pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/pwa-maskable-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
     }),

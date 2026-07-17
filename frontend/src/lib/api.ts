@@ -2,6 +2,16 @@ const API_URL =
   (import.meta.env.VITE_API_BASE_URL as string) ||
   (typeof window !== "undefined" ? "" : "http://localhost:5001");
 
+// Prefixes a path with the API base. In dev/local this is "" (relative — the
+// Vite dev proxy forwards /api to the backend); in production it's the
+// backend's absolute URL from VITE_API_BASE_URL, since the frontend is served
+// from a different origin (Cloudflare Pages) than the API (Render). Use this
+// at the raw-fetch file-download call sites — apiRequest already applies it
+// internally, but those sites bypass apiRequest to read a binary blob.
+export function apiUrl(path: string): string {
+  return `${API_URL}${path}`;
+}
+
 // The active company+outlet pair for the current request context.
 // TenantProvider sets this from the URL (`/:company/:outlet/...`) so every
 // request carries both slugs. An outlet slug is only unique WITHIN its
@@ -60,7 +70,7 @@ export async function apiRequest<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const url = `${API_URL}${path}`;
+  const url = apiUrl(path);
 
   const headers = new Headers(options.headers || {});
 

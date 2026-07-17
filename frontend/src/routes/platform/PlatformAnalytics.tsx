@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TrendingUp, TrendingDown, Download } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-import { apiRequest } from "../../lib/api";
+import { apiRequest, apiUrl } from "../../lib/api";
 import { Skeleton } from "../../components/ui/skeleton";
 
 interface DashboardMetric {
@@ -80,7 +80,7 @@ export default function PlatformAnalytics() {
   const downloadCompaniesReport = async () => {
     const token = localStorage.getItem("platform_auth_token");
     const res = await fetch(
-      `/api/platform/analytics/companies-report/download?startDate=${startDate}&endDate=${endDate}`,
+      apiUrl(`/api/platform/analytics/companies-report/download?startDate=${startDate}&endDate=${endDate}`),
       { headers: { Authorization: `Bearer ${token}` } },
     );
     const blob = await res.blob();

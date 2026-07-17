@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Search, Coins, Gift, Hourglass, Download } from "lucide-react";
 import toast from "react-hot-toast";
-import { apiRequest, tenantHeaders } from "../../lib/api";
+import { apiRequest, apiUrl, tenantHeaders } from "../../lib/api";
 import { useTenant } from "../../context/TenantContext";
 import { tenantPath } from "../../lib/tenantPath";
 import { formatPoints, type PointsTransaction } from "../../hooks/usePoints";
@@ -59,7 +59,7 @@ export default function AdminTransactions() {
   const download = async () => {
     setDownloading(true);
     try {
-      const res = await fetch("/api/admin/reports/transactions/download", {
+      const res = await fetch(apiUrl("/api/admin/reports/transactions/download"), {
         headers: {
           Authorization: `Bearer ${localStorage.getItem("admin_auth_token")}`,
           ...tenantHeaders(),
