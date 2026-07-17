@@ -1,3 +1,4 @@
+const { listPublicCampaigns } = require("../services/campaignService");
 const {
   generateQRToken,
   generateRedeemToken,
@@ -48,6 +49,7 @@ const redeemCustomerPoints = async (req, res, next) => {
     const result = await redeemPoints({
       token: req.body.token,
       itemId: req.body.itemId,
+      kind: req.body.kind,
       userId: req.user.id,
       role: req.user.role,
       organizationId: req.user.organizationId
@@ -62,6 +64,17 @@ const redeemCustomerPoints = async (req, res, next) => {
 const getCatalog = async (req, res, next) => {
   try {
     const data = await getRedeemCatalog(req.user.organizationId);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// What's on and what's coming, for the customer's dashboard. Never the
+// switched-off ones.
+const getCampaigns = async (req, res, next) => {
+  try {
+    const data = await listPublicCampaigns(req.user.organizationId);
     res.status(200).json({ success: true, data });
   } catch (error) {
     next(error);
@@ -118,6 +131,7 @@ module.exports = {
   claimCustomerPoints,
   redeemCustomerPoints,
   getCatalog,
+  getCampaigns,
   getBalance,
   getHistory,
   getTransactions,

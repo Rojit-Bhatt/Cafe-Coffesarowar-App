@@ -24,6 +24,8 @@ const {
   downloadTransactions,
 } = require("../controllers/reportController");
 const { listEvents, createEventController, updateEventController, deleteEventController } = require("../controllers/eventController");
+const campaignController = require("../controllers/campaignController");
+const rewardController = require("../controllers/rewardController");
 const { verifyToken, isBusinessAdmin } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -48,6 +50,18 @@ router.get("/reports/summary", verifyToken, isBusinessAdmin, getSummary);
 router.get("/reports/summary/download", verifyToken, isBusinessAdmin, downloadSummary);
 router.get("/reports/customers/download", verifyToken, isBusinessAdmin, downloadCustomers);
 router.get("/reports/transactions/download", verifyToken, isBusinessAdmin, downloadTransactions);
+// Campaigns change what a bill is worth; Events are display-only listings.
+// Two different things, deliberately two different route groups.
+router.get("/campaigns", verifyToken, isBusinessAdmin, campaignController.list);
+router.post("/campaigns", verifyToken, isBusinessAdmin, campaignController.create);
+router.patch("/campaigns/:id", verifyToken, isBusinessAdmin, campaignController.update);
+router.delete("/campaigns/:id", verifyToken, isBusinessAdmin, campaignController.remove);
+
+router.get("/rewards", verifyToken, isBusinessAdmin, rewardController.list);
+router.post("/rewards", verifyToken, isBusinessAdmin, rewardController.create);
+router.patch("/rewards/:id", verifyToken, isBusinessAdmin, rewardController.update);
+router.delete("/rewards/:id", verifyToken, isBusinessAdmin, rewardController.remove);
+
 router.get("/events", verifyToken, isBusinessAdmin, listEvents);
 router.post("/events", verifyToken, isBusinessAdmin, createEventController);
 router.patch("/events/:id", verifyToken, isBusinessAdmin, updateEventController);

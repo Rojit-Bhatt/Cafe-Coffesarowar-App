@@ -27,6 +27,24 @@ const DEFAULT_PROGRAM = {
 // default for a business that hasn't set one.
 const BUSINESS_CATEGORIES = ["cafe", "restaurant", "bakery", "salon", "gym", "retail", "other"];
 
+// The timezone a campaign's day-of-week is judged in. The server runs UTC,
+// and Nepal is UTC+5:45 — so a campaign set to "Thursdays" would otherwise
+// start and end 5h45m off, which a business would notice immediately. Only
+// daysOfWeek needs this: startAt/endAt are absolute instants and are correct
+// in UTC already.
+//
+// One timezone for the whole platform, not per-outlet, because the platform
+// is Nepal-only. If that ever changes, this moves onto Company.
+const PLATFORM_TIMEZONE = process.env.PLATFORM_TIMEZONE || "Asia/Kathmandu";
+
+// How overlapping campaign multipliers combine. "max" takes the single best
+// multiplier; "compound" would multiply them together.
+//
+// max, deliberately: compounding is how a 2x weekend plus a 3x holiday
+// silently becomes 6x and gives away far more than either campaign promised.
+// A business can always express "6x" by writing 6.
+const CAMPAIGN_STACKING = "max";
+
 // Slugs a company may never take. A company slug owns a whole top-level URL
 // segment (/[company]/[outlet]), so one colliding with a static route would
 // make that company permanently unreachable — React Router ranks static
@@ -44,6 +62,8 @@ const isReservedSlug = (slug) => RESERVED_SLUGS.has(String(slug || "").trim().to
 
 module.exports = {
   PLATFORM_NAME,
+  PLATFORM_TIMEZONE,
+  CAMPAIGN_STACKING,
   DEFAULT_PROGRAM,
   BUSINESS_CATEGORIES,
   RESERVED_SLUGS,

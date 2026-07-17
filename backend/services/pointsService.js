@@ -4,10 +4,12 @@ const DynamicQRToken = require("../models/DynamicQRToken");
 const PointsBalance = require("../models/PointsBalance");
 const PointsTransaction = require("../models/PointsTransaction");
 const MenuItem = require("../models/MenuItem");
+const RewardItem = require("../models/RewardItem");
 const Organization = require("../models/Organization");
 const Company = require("../models/Company");
 const User = require("../models/User");
 const { resolveProgram } = require("./programService");
+const { resolveActiveMultiplier } = require("./campaignService");
 const { earnCenti, toPoints } = require("../utils/pointsMath");
 
 const TOKEN_TTL_SECONDS = 30;
@@ -138,7 +140,7 @@ const generateQRToken = async (adminUserId, organizationId, billAmount) => {
     throw createHttpError("Admin user context is required.", 401);
   }
 
-  await loadOrganizationOrThrow(organizationId);
+  const org = await loadOrganizationOrThrow(organizationId);
   const storedBillAmount = parseBillAmountOrThrow(billAmount);
 
   const token = uuidv4();
@@ -150,9 +152,24 @@ const generateQRToken = async (adminUserId, organizationId, billAmount) => {
     billAmount: storedBillAmount
   });
 
+  // A preview only. The authoritative number is computed again at claim time
+  // (a campaign can start, or the 30s token can be scanned after it ends), so
+  // this must never be stored — it's here to put the real figure in front of
+  // staff before the customer scans.
+  const program = await loadProgram(org);
+  const { multiplier, campaign } = await resolveActiveMultiplier(organizationId, new Date());
+
   return {
     success: true,
-    data: { token, purpose: "earn", billAmount: storedBillAmount, expiresInSeconds: TOKEN_TTL_SECONDS }
+    data: {
+      token,
+      purpose: "earn",
+      billAmount: storedBillAmount,
+      expiresInSeconds: TOKEN_TTL_SECONDS,
+      previewPoints: toPoints(earnCenti(storedBillAmount, program.earnPercent, multiplier)),
+      multiplier,
+      campaignName: campaign ? campaign.name : null
+    }
   };
 };
 
@@ -244,9 +261,10 @@ const awardPointsInTransaction = async ({ session, userId, organizationId, billA
   const program = await loadProgram(org);
   const amount = parseBillAmountOrThrow(billAmount);
 
-  // Multiplier is Phase C (campaigns); snapshotted from here so the ledger
-  // row's shape doesn't change when campaigns land.
-  const multiplier = 1;
+  // Resolved at the moment of the earn, not when the QR was generated: a
+  // campaign that starts between the two should apply, and the customer is
+  // told what they actually got either way.
+  const { multiplier, campaign } = await resolveActiveMultiplier(organizationId, now);
   const earnedCenti = earnCenti(amount, program.earnPercent, multiplier);
 
   await settleExpiryInTransaction({ session, organizationId, userId, program, now });
@@ -267,7 +285,10 @@ const awardPointsInTransaction = async ({ session, userId, organizationId, billA
         balanceAfterCenti: updated.balanceCenti,
         billAmount: amount,
         earnPercent: program.earnPercent,
+        // Both snapshotted: the ledger has to keep saying why this row is
+        // worth what it is, even after the campaign ends or is deleted.
         multiplier,
+        campaignId: campaign ? campaign._id : null,
         token,
         createdAt: now
       }
@@ -282,7 +303,11 @@ const awardPointsInTransaction = async ({ session, userId, organizationId, billA
       pointsEarned: toPoints(earnedCenti),
       billAmount: amount,
       balance: toPoints(updated.balanceCenti),
-      earnPercent: program.earnPercent
+      earnPercent: program.earnPercent,
+      // Null unless a campaign actually applied, so the celebration can call
+      // it out without the caller re-deriving anything.
+      multiplier,
+      campaignName: campaign ? campaign.name : null
     }
   };
 };
@@ -331,23 +356,78 @@ const claimPoints = async ({ token, userId, role, organizationId }) => {
 
 // --- redeem -----------------------------------------------------------
 
-// What this outlet will accept points for. Phase C adds standalone
-// RewardItems alongside these menu items.
+// What this outlet will accept points for: menu items that have been given a
+// points price, plus standalone rewards that only exist for points. Merged
+// here so nothing downstream has to know there are two collections.
 const getRedeemCatalog = async (organizationId) => {
-  const items = await MenuItem.find({ organizationId, isAvailable: true }).sort({ sortOrder: 1 });
+  const [menuItems, rewardItems] = await Promise.all([
+    MenuItem.find({ organizationId, isAvailable: true }).sort({ sortOrder: 1 }),
+    RewardItem.find({ organizationId, isActive: true }).sort({ sortOrder: 1 })
+  ]);
 
-  return items
+  const fromMenu = menuItems
+    // A null price means menu-only: adding points to an outlet must never put
+    // its whole menu up for redemption.
     .filter((item) => item.pointsPriceCenti !== null && item.pointsPriceCenti !== undefined)
     .map((item) => ({
       id: item._id.toString(),
+      kind: "menu",
       name: item.name,
       description: item.description || "",
       category: item.category,
+      imageUrl: "",
       pointsPrice: toPoints(item.pointsPriceCenti)
     }));
+
+  const fromRewards = rewardItems.map((item) => ({
+    id: item._id.toString(),
+    kind: "reward",
+    name: item.name,
+    description: item.description || "",
+    category: "Rewards",
+    imageUrl: item.imageUrl || "",
+    pointsPrice: toPoints(item.pointsPriceCenti)
+  }));
+
+  return [...fromMenu, ...fromRewards].sort((a, b) => a.pointsPrice - b.pointsPrice);
 };
 
-const redeemPoints = async ({ token, itemId, userId, role, organizationId }) => {
+// Resolve a catalog id to something redeemable, scoped to this outlet so an
+// id lifted from another outlet's catalog simply doesn't exist here.
+//
+// `kind` is optional: ObjectIds are unique across collections, so falling
+// back to searching both is safe, and it keeps an older client that doesn't
+// send a kind working.
+const resolveRedeemable = async (organizationId, itemId, kind) => {
+  if (kind !== "reward") {
+    const item = await MenuItem.findOne({ _id: itemId, organizationId });
+    if (item && item.pointsPriceCenti !== null && item.pointsPriceCenti !== undefined) {
+      return {
+        kind: "menu",
+        doc: item,
+        name: item.name,
+        priceCenti: item.pointsPriceCenti,
+        available: item.isAvailable
+      };
+    }
+    if (kind === "menu") return null;
+  }
+
+  const reward = await RewardItem.findOne({ _id: itemId, organizationId });
+  if (reward) {
+    return {
+      kind: "reward",
+      doc: reward,
+      name: reward.name,
+      priceCenti: reward.pointsPriceCenti,
+      available: reward.isActive
+    };
+  }
+
+  return null;
+};
+
+const redeemPoints = async ({ token, itemId, kind, userId, role, organizationId }) => {
   if (!token) throw createHttpError("QR token is required.", 400);
   if (!itemId) throw createHttpError("Pick something to redeem first.", 400);
   if (!userId) throw createHttpError("Authenticated user context is required.", 401);
@@ -356,17 +436,15 @@ const redeemPoints = async ({ token, itemId, userId, role, organizationId }) => 
   const org = await loadOrganizationOrThrow(organizationId);
   const program = await loadProgram(org);
 
-  // Scoped by organizationId, so an itemId lifted from another outlet's menu
-  // simply doesn't exist here.
-  const item = await MenuItem.findOne({ _id: itemId, organizationId });
-  if (!item || item.pointsPriceCenti === null || item.pointsPriceCenti === undefined) {
+  const item = await resolveRedeemable(organizationId, itemId, kind);
+  if (!item) {
     throw createHttpError("That reward isn't available here.", 404);
   }
-  if (!item.isAvailable) {
+  if (!item.available) {
     throw createHttpError("That reward is out of stock right now.", 400);
   }
 
-  const priceCenti = item.pointsPriceCenti;
+  const priceCenti = item.priceCenti;
   const session = await mongoose.startSession();
 
   try {
@@ -404,7 +482,8 @@ const redeemPoints = async ({ token, itemId, userId, role, organizationId }) => 
             type: "redeem",
             pointsCenti: -priceCenti,
             balanceAfterCenti: updated.balanceCenti,
-            rewardRef: item._id,
+            rewardKind: item.kind,
+            rewardRef: item.doc._id,
             rewardName: item.name,
             token,
             createdAt: now
@@ -442,6 +521,7 @@ const getPointsBalanceByUserId = async (userId, organizationId) => {
 
   const balance = await PointsBalance.findOne({ userId, organizationId });
   const now = new Date();
+  const { multiplier, campaign } = await resolveActiveMultiplier(organizationId, now);
 
   return {
     success: true,
@@ -450,7 +530,11 @@ const getPointsBalanceByUserId = async (userId, organizationId) => {
       lastActivityAt: balance ? balance.lastActivityAt : null,
       expiresAt: expiresAtFor(balance, program),
       earnPercent: program.earnPercent,
-      pointsExpiryDays: program.pointsExpiryDays
+      pointsExpiryDays: program.pointsExpiryDays,
+      // Null unless something is live right now — the dashboard shouldn't
+      // have to re-derive "is a campaign on".
+      multiplier,
+      activeCampaign: campaign ? { name: campaign.name, multiplier: campaign.multiplier } : null
     }
   };
 };
@@ -543,6 +627,7 @@ module.exports = {
   claimPoints,
   redeemPoints,
   getRedeemCatalog,
+  resolveRedeemable,
   getPointsBalanceByUserId,
   getPointsHistoryByUserId,
   getOutletTransactions,

@@ -3,6 +3,7 @@ const {
   claimCustomerPoints,
   redeemCustomerPoints,
   getCatalog,
+  getCampaigns,
   getBalance,
   getHistory
 } = require("../controllers/pointsController");
@@ -16,6 +17,7 @@ const router = express.Router();
 router.post("/claim", verifyToken, claimCustomerPoints);
 router.post("/redeem", verifyToken, redeemCustomerPoints);
 router.get("/catalog", verifyToken, getCatalog);
+router.get("/campaigns", verifyToken, getCampaigns);
 router.get("/balance", verifyToken, getBalance);
 router.get("/history", verifyToken, getHistory);
 

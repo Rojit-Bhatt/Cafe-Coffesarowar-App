@@ -38,6 +38,9 @@ const PointsTransactionSchema = new mongoose.Schema({
   campaignId: { type: mongoose.Schema.Types.ObjectId, ref: "Campaign", default: null },
 
   // --- redeem only ---
+  // Which collection rewardRef points into. A ref alone is ambiguous now that
+  // a redemption can be a MenuItem or a standalone RewardItem.
+  rewardKind: { type: String, enum: ["menu", "reward", null], default: null },
   rewardRef: { type: mongoose.Schema.Types.ObjectId, default: null },
   // Denormalized on purpose: the item can be renamed or deleted from the menu
   // later, and a receipt must still say what was actually handed over.
