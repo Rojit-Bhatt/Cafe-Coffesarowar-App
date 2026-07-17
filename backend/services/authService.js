@@ -171,7 +171,7 @@ const verifyEmail = async ({ token, organizationId }) => {
   record.usedAt = new Date();
   await record.save();
 
-  return { success: true, message: "Email verified. You can now collect stamps." };
+  return { success: true, message: "Email verified. You can start earning points." };
 };
 
 const resendVerification = async ({ email, organizationId, companySlug, outletSlug }) => {
