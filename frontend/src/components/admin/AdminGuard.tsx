@@ -13,8 +13,18 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   // provides (companySlug + outletSlug — there is no bare :slug anywhere).
   const { companySlug, outletSlug } = useParams();
   const tenantSlugPath = companySlug && outletSlug ? `/${companySlug}/${outletSlug}` : null;
-  const { data: settings, isLoading: settingsLoading, isError: settingsError, error: settingsErrorObj } = useAdminSettings();
+  const { data: settings, isLoading: settingsLoading, error: settingsErrorObj } = useAdminSettings();
   const suspended = (settingsErrorObj as (Error & { code?: string }) | null)?.code === "TENANT_SUSPENDED";
+
+  // Deliberately `error`, not `isError`. In TanStack Query v5 a query that
+  // ALREADY HAS DATA and then fails a background refetch keeps status
+  // "success" — isError stays false and only `error` is populated. Reading
+  // isError therefore caught a 401 on first load but missed the case that
+  // actually happens to staff: a token going stale mid-shift while the
+  // console is open. The console kept rendering happily off cached data
+  // while every write failed, which is precisely the stranding this guard
+  // exists to prevent.
+  const settingsError = Boolean(settingsErrorObj);
 
   // Latched, not read live: AdminLayout (rendered as `children` below) also
   // calls useAdminSettings() itself, so mounting/unmounting it in direct

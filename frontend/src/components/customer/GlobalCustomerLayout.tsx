@@ -75,7 +75,11 @@ export function GlobalCustomerLayout() {
   const [confirmLogoutOpen, setConfirmLogoutOpen] = useState(false);
   // Also warms the query cache Explore's "My places" row and ExploreMine both
   // read from, so switching tabs is instant.
-  const { isError: myTenantsError } = useMyTenants();
+  // `error`, not `isError` — same reason as AdminGuard: once this query has
+  // data, a failed background refetch leaves status "success" and isError
+  // false, so a session going stale mid-visit would never be caught.
+  const { error: myTenantsErrorObj } = useMyTenants();
+  const myTenantsError = Boolean(myTenantsErrorObj);
 
   useEffect(() => {
     if (!globalAccount) {
