@@ -27,14 +27,17 @@ const issueToken = async (user, type, organizationId) => {
   return raw;
 };
 
+// Token creation stays awaited (fast DB write, needed before the caller
+// responds); the SMTP send is fire-and-forget — its latency must never be
+// what an admin/customer is stuck waiting on.
 const sendVerifyEmail = async (user, organizationId, companySlug, outletSlug) => {
   const raw = await issueToken(user, "email_verify", organizationId);
   const link = buildAuthLink({ companySlug, outletSlug, path: "verify-email", token: raw });
-  await sendEmail({
+  sendEmail({
     to: user.email,
     subject: "Verify your email",
     html: `<p>Confirm your email to activate your account:</p><p><a href="${link}">${link}</a></p>`
-  });
+  }).catch((err) => console.error(`Failed to email verify-link to ${user.email}:`, err.message));
 };
 
 const normalizeEmail = (email) => email.trim().toLowerCase();
@@ -282,11 +285,11 @@ const forgotPassword = async ({ email, organizationId, companySlug, outletSlug }
     if (user) {
       const raw = await issueToken(user, "password_reset", organizationId);
       const link = buildAuthLink({ companySlug, outletSlug, path: "reset-password", token: raw });
-      await sendEmail({
+      sendEmail({
         to: user.email,
         subject: "Reset your password",
         html: `<p>Reset your password:</p><p><a href="${link}">${link}</a></p>`
-      });
+      }).catch((err) => console.error(`Failed to email reset-link to ${user.email}:`, err.message));
     }
   }
   return { success: true, message: "If that account exists, a reset link was sent." };

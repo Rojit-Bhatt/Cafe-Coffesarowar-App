@@ -47,14 +47,16 @@ const issueToken = async (customerAccountId, type) => {
   return raw;
 };
 
+// Token creation stays awaited (fast DB write); the SMTP send is
+// fire-and-forget so its latency never blocks the caller's response.
 const sendVerifyEmail = async (account) => {
   const raw = await issueToken(account._id, "email_verify");
   const link = buildGlobalAuthLink("verify-email", raw);
-  await sendEmail({
+  sendEmail({
     to: account.email,
     subject: "Verify your email",
     html: `<p>Confirm your email to activate your account:</p><p><a href="${link}">${link}</a></p>`
-  });
+  }).catch((err) => console.error(`Failed to email verify-link to ${account.email}:`, err.message));
 };
 
 const formatGlobalSessionPayload = (account) => ({
@@ -313,11 +315,11 @@ const forgotPassword = async ({ email }) => {
     if (account) {
       const raw = await issueToken(account._id, "password_reset");
       const link = buildGlobalAuthLink("reset-password", raw);
-      await sendEmail({
+      sendEmail({
         to: account.email,
         subject: "Reset your password",
         html: `<p>Reset your password:</p><p><a href="${link}">${link}</a></p>`
-      });
+      }).catch((err) => console.error(`Failed to email reset-link to ${account.email}:`, err.message));
     }
   }
   return { success: true, message: "If that account exists, a reset link was sent." };

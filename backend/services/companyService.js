@@ -56,14 +56,20 @@ const issueToken = async (adminAccountId, type) => {
   return raw;
 };
 
+// Token creation is a fast DB write and stays awaited — the caller (e.g. a
+// fresh registration) needs it to exist before responding. The actual SMTP
+// round-trip does not: nothing about "was the account created" depends on
+// how long the outbound email takes, and awaiting it here is what turned a
+// cold Render instance + a fresh Brevo TLS handshake into a request slow
+// enough that an admin gave up and refreshed before ever seeing success.
 const sendAdminVerifyEmail = async (account) => {
   const raw = await issueToken(account._id, "email_verify");
   const link = buildAdminAuthLink("admin-verify-email", raw);
-  await sendEmail({
+  sendEmail({
     to: account.email,
     subject: "Verify your email",
     html: `<p>Confirm your email to activate your admin account:</p><p><a href="${link}">${link}</a></p>`
-  });
+  }).catch((err) => console.error(`Failed to email verify-link to ${account.email}:`, err.message));
 };
 
 const formatCompany = (company) => ({

@@ -156,11 +156,11 @@ const forgotAdminPassword = async ({ email }) => {
         usedAt: null
       });
       const link = buildAdminAuthLink("admin-reset-password", raw);
-      await sendEmail({
+      sendEmail({
         to: account.email,
         subject: "Reset your password",
         html: `<p>Reset your password:</p><p><a href="${link}">${link}</a></p>`
-      });
+      }).catch((err) => console.error(`Failed to email reset-link to ${account.email}:`, err.message));
     }
   }
   return { success: true, message: "If that account exists, a reset link was sent." };

@@ -169,7 +169,40 @@ const computeReminder = (subscription) => {
 // platformConfigService's singleton, the same info already shown on the
 // public platform contact page) since renewal here is a manual, out-of-band,
 // key-based process — the business needs to know who to actually call.
-const maybeSendReminderEmail = async (subscription) => {
+// The AdminAccount lookup, the platform-contact read, and the SMTP round
+// trip are all genuinely slow, and NONE of it needs to finish before the
+// read that triggered this (getSubscriptionSummary, on the company/admin
+// settings GET) responds — this whole thing is a side effect of a page
+// load, not the thing being requested. Only the synchronous guard clauses
+// above run inline; everything past them fires in the background.
+const sendReminderInBackground = async (subscription, reminder) => {
+  try {
+    // The company entity holds no email — its owner's AdminAccount does.
+    const owner = await AdminAccount.findOne({ companyId: subscription.companyId, kind: "company_owner" });
+    if (!owner) return;
+
+    const contact = await getContact();
+    const contactLine = [contact.phone, contact.email].filter(Boolean).join(" or ");
+    const whenPhrase = reminder.daysLeft >= 0
+      ? `in ${reminder.daysLeft} day${reminder.daysLeft === 1 ? "" : "s"}`
+      : `${Math.abs(reminder.daysLeft)} day${Math.abs(reminder.daysLeft) === 1 ? "" : "s"} ago`;
+
+    await sendEmail({
+      to: owner.email,
+      subject: "Your Stampd subscription is expiring soon",
+      html: `<p>Your subscription expires ${whenPhrase}. Renewal is handled manually — contact us${contactLine ? ` at ${contactLine}` : ""} to arrange payment and receive a new activation key.</p>`
+    });
+
+    await Subscription.findOneAndUpdate(
+      { _id: subscription._id },
+      { $set: { reminderEmailSentAt: new Date() } }
+    );
+  } catch (err) {
+    console.error(`Failed to send subscription reminder for company ${subscription.companyId}:`, err.message);
+  }
+};
+
+const maybeSendReminderEmail = (subscription) => {
   if (!subscription) return;
 
   const reminder = computeReminder(subscription);
@@ -180,26 +213,7 @@ const maybeSendReminderEmail = async (subscription) => {
     new Date(subscription.reminderEmailSentAt).getTime() >= new Date(subscription.currentPeriodStart).getTime();
   if (alreadySentThisCycle) return;
 
-  // The company entity holds no email — its owner's AdminAccount does.
-  const owner = await AdminAccount.findOne({ companyId: subscription.companyId, kind: "company_owner" });
-  if (!owner) return;
-
-  const contact = await getContact();
-  const contactLine = [contact.phone, contact.email].filter(Boolean).join(" or ");
-  const whenPhrase = reminder.daysLeft >= 0
-    ? `in ${reminder.daysLeft} day${reminder.daysLeft === 1 ? "" : "s"}`
-    : `${Math.abs(reminder.daysLeft)} day${Math.abs(reminder.daysLeft) === 1 ? "" : "s"} ago`;
-
-  await sendEmail({
-    to: owner.email,
-    subject: "Your Stampd subscription is expiring soon",
-    html: `<p>Your subscription expires ${whenPhrase}. Renewal is handled manually — contact us${contactLine ? ` at ${contactLine}` : ""} to arrange payment and receive a new activation key.</p>`
-  });
-
-  await Subscription.findOneAndUpdate(
-    { _id: subscription._id },
-    { $set: { reminderEmailSentAt: new Date() } }
-  );
+  sendReminderInBackground(subscription, reminder);
 };
 
 const formatSubscription = async (subscription) => {
@@ -225,7 +239,7 @@ const formatSubscription = async (subscription) => {
 // a manual, key-based renewal regardless of whether the reminder is showing.
 const getSubscriptionSummary = async (companyId) => {
   const subscription = await getSubscription(companyId);
-  await maybeSendReminderEmail(subscription);
+  maybeSendReminderEmail(subscription);
 
   const contact = await getContact();
   return {
