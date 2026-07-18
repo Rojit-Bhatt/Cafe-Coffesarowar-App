@@ -51,19 +51,19 @@ export default function CompanyReports() {
 
   return (
     <div>
-      <h1 className="font-display text-[30px] font-extrabold text-[var(--ink)]">Reports</h1>
+      <h1 className="font-display text-[30px] font-bold text-[var(--ink)]">Reports</h1>
       <p className="mb-6 text-[var(--muted)]">Every outlet you run, side by side. Only you see this.</p>
 
       <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         {tiles.map((t) => (
-          <div key={t.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
+          <div key={t.label} className="rounded-[var(--radius-card)] border border-[var(--line)] bg-[var(--surface)] shadow-ambient p-5">
             <div className="mb-1.5 text-[13px] text-[var(--muted)]">{t.label}</div>
             {isLoading ? <Skeleton className="h-[26px] w-16" /> : <div className="font-display text-[26px] font-bold">{t.val}</div>}
           </div>
         ))}
       </div>
 
-      <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
+      <div className="shadow-ambient overflow-hidden rounded-[var(--radius-card)] bg-[var(--surface)]">
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr] border-b border-[var(--line)] px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
           <span>Outlet</span>
           <span>Customers</span>
