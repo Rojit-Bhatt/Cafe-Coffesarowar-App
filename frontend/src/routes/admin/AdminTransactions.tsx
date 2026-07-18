@@ -84,7 +84,7 @@ export default function AdminTransactions() {
     <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="font-display text-[30px] font-extrabold text-[var(--ink)]">Transactions</h1>
+          <h1 className="font-display text-[30px] font-bold text-[var(--ink)]">Transactions</h1>
           <p className="text-[var(--muted)]">Every point earned, spent, or expired here.</p>
         </div>
         <button
@@ -104,7 +104,7 @@ export default function AdminTransactions() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by customer or reward…"
-            className="w-full rounded-full border border-[var(--line)] bg-[var(--surface)] py-2.5 pl-10 pr-4 text-sm focus:border-[var(--brand)] focus:outline-none"
+            className="w-full rounded-full border border-[var(--line)] bg-[var(--surface)] py-2.5 pl-10 pr-4 text-sm focus:border-[var(--primary)] focus:outline-none"
           />
         </div>
         <div className="flex gap-1.5 rounded-full border border-[var(--line)] bg-[var(--surface)] p-1">
@@ -113,7 +113,7 @@ export default function AdminTransactions() {
               key={t}
               onClick={() => setType(t)}
               className="rounded-full px-3.5 py-1.5 text-[13px] font-bold capitalize transition-colors"
-              style={type === t ? { background: "var(--brand)", color: "white" } : { color: "var(--muted)" }}
+              style={type === t ? { background: "var(--primary)", color: "white" } : { color: "var(--muted)" }}
             >
               {t}
             </button>
@@ -121,7 +121,7 @@ export default function AdminTransactions() {
         </div>
       </div>
 
-      <div className="shadow-ambient overflow-hidden rounded-3xl bg-[var(--surface)]">
+      <div className="shadow-ambient overflow-hidden rounded-[var(--radius-card)] bg-[var(--surface)]">
         <div className="grid grid-cols-[1.6fr_1fr_1.4fr_1fr_1fr] border-b border-[var(--line)] px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-[var(--soft)]">
           <span>Customer</span>
           <span>Type</span>

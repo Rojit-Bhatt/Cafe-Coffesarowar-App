@@ -68,7 +68,7 @@ export default function AdminReportsSummary() {
 
   return (
     <div>
-      <h1 className="font-display text-[28px] font-extrabold text-[var(--ink)]">Summary report</h1>
+      <h1 className="font-display text-[28px] font-bold text-[var(--ink)]">Summary report</h1>
       <p className="mb-6 text-[var(--muted)]">Business activity for the selected date range.</p>
 
       <div className="mb-6 flex flex-wrap items-end gap-4">
@@ -78,7 +78,7 @@ export default function AdminReportsSummary() {
             type="date"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
-            className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-2.5 text-sm focus:border-[var(--brand)] focus:outline-none"
+            className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-2.5 text-sm focus:border-[var(--primary)] focus:outline-none"
           />
         </label>
         <label className="block">
@@ -87,13 +87,13 @@ export default function AdminReportsSummary() {
             type="date"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-2.5 text-sm focus:border-[var(--brand)] focus:outline-none"
+            className="rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-2.5 text-sm focus:border-[var(--primary)] focus:outline-none"
           />
         </label>
         <button
           onClick={download}
           className="inline-flex items-center gap-1.5 rounded-[12px] px-5 py-2.5 text-sm font-bold text-white"
-          style={{ background: "var(--brand)" }}
+          style={{ background: "var(--primary)" }}
         >
           <Download className="h-4 w-4" /> Download Excel
         </button>
@@ -101,9 +101,9 @@ export default function AdminReportsSummary() {
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
-          <div key={c.label} className="shadow-ambient rounded-3xl bg-[var(--surface)] p-5">
-            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--surface-container)]">
-              <c.Icon className="h-5 w-5" style={{ color: "var(--brand)" }} />
+          <div key={c.label} className="rounded-[var(--radius-card)] border border-[var(--line)] bg-[var(--surface)] shadow-ambient p-5">
+            <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-[var(--radius-btn)] bg-[var(--surface-2)]">
+              <c.Icon className="h-5 w-5" style={{ color: "var(--primary-deep)" }} />
             </div>
             <div className="mb-1 text-[13px] uppercase tracking-wide text-[var(--muted)]">{c.label}</div>
             {isLoading ? (
