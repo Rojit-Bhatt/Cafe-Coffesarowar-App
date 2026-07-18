@@ -3,6 +3,7 @@ import { useParams, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { tenantPath } from "../lib/tenantPath";
 import { apiRequest, setTenantRef } from "../lib/api";
+import { tenantPalette } from "../lib/color";
 
 export interface TenantBranding {
   tagline: string;
@@ -69,18 +70,6 @@ interface TenantContextValue {
 
 const TenantContext = createContext<TenantContextValue | undefined>(undefined);
 
-// Darken a #RRGGBB hex by `amount` (0..1) toward black — used to derive the
-// gradient companion for the tenant's brand colour.
-function darken(hex: string, amount = 0.22): string {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-  if (!m) return "#8a3a28";
-  const n = parseInt(m[1], 16);
-  const r = Math.round(((n >> 16) & 255) * (1 - amount));
-  const g = Math.round(((n >> 8) & 255) * (1 - amount));
-  const b = Math.round((n & 255) * (1 - amount));
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
-
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const { companySlug = "", outletSlug = "" } = useParams();
   const slug = outletSlug;
@@ -116,8 +105,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   // message meant for the customer-facing app.
   const isAdminRoute = location.pathname.startsWith(`/${companySlug}/${outletSlug}/admin`);
 
-  const brand = tenant?.branding?.primaryColor || "#8C5E45";
-  const brandDeep = darken(brand);
+  // Nothing downstream reads branding.primaryColor raw. Every tenant-derived
+  // token is contrast-checked here so an outlet's colour choice — however
+  // pale, neon, or close to the value green — can't break legibility or make
+  // an identity accent read as a points figure. See lib/color.ts.
+  const palette = tenantPalette(tenant?.branding?.primaryColor);
 
   // Latched into a ref, not read live off isLoading/isError/tenant each
   // render: this query intermittently passes through a transient state
@@ -178,7 +170,20 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <TenantContext.Provider value={{ companySlug, slug, outletSlug, tenant: tenant ?? null, isLoading, notFound, suspended, path: (sub = "") => tenantPath(companySlug, outletSlug, sub) }}>
-      <div style={{ ["--brand" as any]: brand, ["--brand-deep" as any]: brandDeep }}>
+      <div
+        style={{
+          ["--brand" as any]: palette.brand,
+          ["--brand-deep" as any]: palette.brandDeep,
+          // Text-safe (>=4.5:1 on --surface) and fill-safe companions. Use
+          // these for anything a customer has to read; --brand itself is for
+          // fills and washes only.
+          ["--brand-ink" as any]: palette.brandInk,
+          ["--brand-on" as any]: palette.brandOn,
+          // Identity accents step aside to the ink when the tenant's brand is
+          // itself green, so green on screen always means value.
+          ["--brand-accent" as any]: palette.accent,
+        }}
+      >
         {children}
       </div>
     </TenantContext.Provider>
