@@ -59,6 +59,9 @@ export function useMotion() {
      * have no meaningful zero-duration form (a flip, a slide-in from offscreen)
      * — those should crossfade instead of snapping through the motion.
      */
-    pick: <T,>(moving: T, still: T): T => (prefersReduced ? still : moving),
+    // Two type parameters, not one: the still variant is often a different
+    // shape from the moving one — commonly `false`, motion's "skip the
+    // initial state entirely" value, against an object of transforms.
+    pick: <T, U>(moving: T, still: U): T | U => (prefersReduced ? still : moving),
   };
 }
