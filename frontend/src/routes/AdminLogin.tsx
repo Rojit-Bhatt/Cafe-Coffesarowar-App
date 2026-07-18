@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -41,7 +41,30 @@ export default function AdminLogin() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
+  // Set only on EMAIL_NOT_VERIFIED — the one case where "try again" isn't
+  // the fix, and the admin needs a way to get a fresh link without anyone
+  // having to reach into the database for them.
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
+
+  const resend = async () => {
+    if (!unverifiedEmail) return;
+    setResending(true);
+    try {
+      const res = await apiRequest<{ message: string }>("/api/admin-auth/resend-verification", {
+        method: "POST",
+        body: { email: unverifiedEmail },
+      });
+      toast.success(res.message || "If that account exists and needs verification, a new link was sent.");
+    } catch (err: any) {
+      toast.error(err.message || "Couldn't resend — try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   const onSubmit = async (data: FormValues) => {
+    setUnverifiedEmail(null);
     const id = toast.loading("Signing you in…");
     try {
       const res = await apiRequest<LoginResponse>("/api/admin-auth/login", {
@@ -74,6 +97,7 @@ export default function AdminLogin() {
     } catch (err: any) {
       if (err.code === "EMAIL_NOT_VERIFIED") {
         toast.error("Verify your email first — check your inbox for the link.", { id });
+        setUnverifiedEmail(data.email);
         return;
       }
       toast.error(err.message || "Couldn't sign you in — try again.", { id });
@@ -118,6 +142,21 @@ export default function AdminLogin() {
               {isSubmitting ? "Signing you in…" : "Sign in"}
             </button>
           </form>
+
+          {unverifiedEmail && (
+            <div className="mt-4 rounded-[14px] border border-[var(--line)] bg-[var(--bg)] p-3.5 text-center text-[13px] text-[var(--muted)]">
+              Didn't get the link, or it expired?{" "}
+              <button
+                type="button"
+                onClick={resend}
+                disabled={resending}
+                className="font-bold text-[var(--brand)] hover:underline disabled:opacity-50"
+              >
+                {resending ? "Sending…" : "Resend verification email"}
+              </button>
+            </div>
+          )}
+
           <p className="mt-4 text-center text-[13px] text-[var(--muted)]">
             <Link to="/admin-forgot-password" className="hover:text-[var(--ink)]">Forgot password?</Link>
           </p>
