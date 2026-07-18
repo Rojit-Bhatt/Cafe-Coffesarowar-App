@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "../../lib/api";
 import { useNavigate } from "react-router-dom";
 import { useTenant } from "../../context/TenantContext";
-import { PointsCelebration } from "./PointsCelebration";
+import { EarnCelebration } from "./EarnCelebration";
 import { tenantPath } from "../../lib/tenantPath";
 
 interface EarnResult {
@@ -230,11 +230,11 @@ export function ScannerModal({
 
   if (earned) {
     return (
-      <PointsCelebration
-        variant="earn"
+      <EarnCelebration
         points={earned.pointsEarned}
         billAmount={earned.billAmount}
         balance={earned.balance}
+        outletName={tenantName}
         multiplier={earned.multiplier}
         campaignName={earned.campaignName}
         onDone={onClose}
