@@ -11,6 +11,8 @@ import {
   Calendar,
   Gift,
   Zap,
+  Star,
+  Heart,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -345,6 +347,35 @@ export default function CustomerDashboard() {
                   </li>
                 ))}
               </ul>
+            </Section>
+          )}
+
+          {contact?.googleReviewUrl && (
+            <Section title="Google Reviews">
+              <div className="flex flex-col gap-3 text-left">
+                <div className="flex items-center gap-2">
+                  <div className="flex text-amber-500">
+                    <Star className="h-4.5 w-4.5 fill-current" />
+                    <Star className="h-4.5 w-4.5 fill-current" />
+                    <Star className="h-4.5 w-4.5 fill-current" />
+                    <Star className="h-4.5 w-4.5 fill-current" />
+                    <Star className="h-4.5 w-4.5 fill-current" />
+                  </div>
+                  <span className="text-sm font-semibold text-[var(--ink)]">5.0 Star Rating</span>
+                </div>
+                <p className="text-xs text-[var(--muted)] leading-relaxed">
+                  Love our service, food, or drinks? We'd love if you could leave a review on Google! Your support helps other coffee and cafe lovers find us.
+                </p>
+                <a
+                  href={contact.googleReviewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 flex items-center justify-center gap-2 rounded-[var(--radius-btn)] bg-[#1a73e8] hover:bg-[#1557b0] text-white py-2.5 px-4 text-xs font-bold shadow-sm transition-colors text-center cursor-pointer"
+                >
+                  <Heart className="h-3.5 w-3.5 fill-current" />
+                  Write a Google Review
+                </a>
+              </div>
             </Section>
           )}
 

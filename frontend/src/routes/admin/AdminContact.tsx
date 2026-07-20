@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Facebook, Instagram, Twitter, MapPin, Phone, Mail, Clock } from "lucide-react";
+import { Facebook, Instagram, Twitter, MapPin, Phone, Mail, Clock, Star } from "lucide-react";
 
 function TiktokIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -28,6 +28,7 @@ const EMPTY_CONTACT: AdminContactData = {
   longitude: null,
   hours: "",
   aboutUs: "",
+  googleReviewUrl: "",
   socials: { instagram: "", facebook: "", x: "", tiktok: "" },
 };
 
@@ -284,6 +285,19 @@ export default function AdminContact() {
             />
           </Field>
 
+          <Field label="Google Review URL">
+            <input
+              id="contact-google-review"
+              value={contact.googleReviewUrl || ""}
+              onChange={(e) => set("googleReviewUrl", e.target.value)}
+              placeholder="https://g.page/r/YOUR_BUSINESS_ID/review"
+              className="w-full rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              Direct link for customers to write a Google review. Leave blank to hide the Google Reviews Card.
+            </p>
+          </Field>
+
           <button
             id="save-contact-btn"
             onClick={save}
@@ -356,6 +370,34 @@ export default function AdminContact() {
                 </span>
               )}
             </div>
+
+            {contact.googleReviewUrl && (
+              <div className="mt-4 border-t border-[var(--line)] pt-4 text-left">
+                <div className="rounded-[16px] bg-[#f8f9fa] border border-[#e8eaed] p-3.5 flex flex-col gap-2 shadow-sm">
+                  <div className="flex items-center gap-1.5 justify-between">
+                    <span className="text-xs font-bold text-[#202124]">Review us on Google</span>
+                    <div className="flex text-[#fbbc05]">
+                      <Star className="h-3 w-3 fill-current" />
+                      <Star className="h-3 w-3 fill-current" />
+                      <Star className="h-3 w-3 fill-current" />
+                      <Star className="h-3 w-3 fill-current" />
+                      <Star className="h-3 w-3 fill-current" />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#5f6368] leading-normal">
+                    Love our service? Share your feedback with others on Google!
+                  </p>
+                  <a
+                    href={contact.googleReviewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 w-full rounded-[10px] bg-[#1a73e8] text-white py-1.5 px-3 text-[11px] font-bold text-center hover:bg-[#1557b0] transition-colors"
+                  >
+                    Write a Review
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

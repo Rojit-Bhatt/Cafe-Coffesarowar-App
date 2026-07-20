@@ -20,6 +20,7 @@ export interface TenantContact {
   longitude: number | null;
   hours: string;
   aboutUs: string;
+  googleReviewUrl?: string;
   socials: {
     instagram: string;
     facebook: string;

@@ -57,6 +57,7 @@ const OrganizationSchema = new mongoose.Schema({
     longitude: { type: Number, default: null },
     hours: { type: String, default: "" },
     aboutUs: { type: String, default: "" },
+    googleReviewUrl: { type: String, default: "" },
     socials: {
       instagram: { type: String, default: "" },
       facebook: { type: String, default: "" },
