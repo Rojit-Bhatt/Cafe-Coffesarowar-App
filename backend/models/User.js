@@ -18,6 +18,9 @@ const UserSchema = new mongoose.Schema({
     // Required for customers only; enforced again in authService for the mock DB
     // (which does not run validators).
     required: function () {
+      if (this.googleId || this.customerAccountId) {
+        return false;
+      }
       return this.role === "customer";
     }
   },
