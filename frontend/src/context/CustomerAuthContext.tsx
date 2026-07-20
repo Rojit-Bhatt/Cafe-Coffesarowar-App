@@ -121,8 +121,11 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
       } catch (err) {
         // Global session invalid/expired/revoked — drop it and any tenant
         // token, don't silently keep the customer half-signed-in.
-        clearGlobal();
-        clearTenant();
+        const status = (err as any).status;
+        if (status === 401 || status === 403) {
+          clearGlobal();
+          clearTenant();
+        }
         throw err;
       } finally {
         setIsLoading(false);
@@ -173,12 +176,15 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
     pendingClaimId?: string,
     claimSecret?: string,
   ) => {
-    const res = await apiRequest<{ success: boolean; message: string }>(
+    const res = await apiRequest<{ success: boolean; token?: string; account?: GlobalAccount; message: string }>(
       "/api/customer-auth/register",
       { method: "POST", body: { name, email, password, phone, pendingClaimId, claimSecret } },
     );
     if (!res.success) {
       throw new Error(res.message || "Failed to register.");
+    }
+    if (res.token && res.account) {
+      persistGlobal(res.token, res.account);
     }
   };
 

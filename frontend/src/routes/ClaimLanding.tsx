@@ -6,6 +6,10 @@ import { apiRequest } from "../lib/api";
 import { useTenant } from "../context/TenantContext";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { EarnCelebration } from "../components/customer/EarnCelebration";
+import { GoogleLogin } from "@react-oauth/google";
+import { PhoneStepModal } from "../components/customer/PhoneStepModal";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 import { ClaimStateScreen } from "../components/customer/ClaimStateScreen";
 import { formatPoints } from "../hooks/usePoints";
 import { tenantPath } from "../lib/tenantPath";
@@ -74,7 +78,7 @@ export default function ClaimLanding() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const { tenant } = useTenant();
-  const { user, isLoading, ensureTenantSession, login, registerUser } = useCustomerAuth();
+  const { user, isLoading, ensureTenantSession, login, registerUser, loginWithGoogle } = useCustomerAuth();
 
   const [stage, setStage] = useState<Stage>("resolving");
   const [errorMsg, setErrorMsg] = useState("");
@@ -87,6 +91,7 @@ export default function ClaimLanding() {
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [mode, setMode] = useState<"login" | "register">("login");
   const [busy, setBusy] = useState(false);
+  const [showPhoneStep, setShowPhoneStep] = useState(false);
   const checkedOnce = useRef(false);
 
   // Step 1: convert the scanned QR token into a longer-lived pending claim.
@@ -226,9 +231,34 @@ export default function ClaimLanding() {
         pendingClaimId ?? undefined,
         claimSecret ?? undefined,
       );
-      setStage("awaiting-verification");
+      await ensureTenantSession(slug, tenant?.id ?? null);
+      if (pendingClaimId) {
+        fulfill(pendingClaimId);
+      } else {
+        navigate(tenantPath(companySlug, slug, "dashboard"));
+      }
     } catch (e) {
       toast.error((e as Error).message || "Couldn't create your account — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onGoogle = async (credential?: string) => {
+    if (!credential) return;
+    setBusy(true);
+    try {
+      const { needsPhone } = await loginWithGoogle(credential);
+      await ensureTenantSession(slug, tenant?.id ?? null);
+      if (needsPhone) {
+        setShowPhoneStep(true);
+      } else {
+        if (pendingClaimId) {
+          fulfill(pendingClaimId);
+        }
+      }
+    } catch (err) {
+      toast.error((err as Error).message || "Google sign-in didn't work — try again.");
     } finally {
       setBusy(false);
     }
@@ -388,6 +418,20 @@ export default function ClaimLanding() {
           <ClaimRegisterForm busy={busy} onSubmit={onRegister} />
         )}
 
+        {GOOGLE_CLIENT_ID && (
+          <div className="mt-5">
+            <div className="mb-4 flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--soft)]">
+              <span className="h-px flex-1 bg-[var(--line)]" /> or <span className="h-px flex-1 bg-[var(--line)]" />
+            </div>
+            <div className="flex justify-center">
+              <GoogleLogin
+                onSuccess={(cred) => onGoogle(cred.credential)}
+                onError={() => toast.error("Google sign-in didn't work — try again.")}
+              />
+            </div>
+          </div>
+        )}
+
         <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
           {mode === "login" ? "New here? " : "Already have an account? "}
           <button
@@ -398,6 +442,15 @@ export default function ClaimLanding() {
           </button>
         </p>
       </div>
+
+      {showPhoneStep && (
+        <PhoneStepModal
+          onDone={() => {
+            setShowPhoneStep(false);
+            if (pendingClaimId) fulfill(pendingClaimId);
+          }}
+        />
+      )}
     </div>
   );
 }

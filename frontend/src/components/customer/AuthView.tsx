@@ -7,7 +7,6 @@ import * as z from "zod";
 import { GoogleLogin } from "@react-oauth/google";
 import { useCustomerAuth } from "../../context/CustomerAuthContext";
 import { useTenant } from "../../context/TenantContext";
-import { apiRequest } from "../../lib/api";
 import { PhoneStepModal } from "./PhoneStepModal";
 import toast from "react-hot-toast";
 import { tenantPath } from "../../lib/tenantPath";
@@ -41,7 +40,6 @@ export function AuthView({ mode }: { mode: Mode }) {
   const { user, login, registerUser, loginWithGoogle, ensureTenantSession } = useCustomerAuth();
   const [showPass, setShowPass] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [showPhoneStep, setShowPhoneStep] = useState(false);
 
   const isLogin = mode === "login";
@@ -83,8 +81,9 @@ export function AuthView({ mode }: { mode: Mode }) {
     try {
       const local = data.phone.replace(/\D/g, "").replace(/^0+/, "");
       await registerUser(data.name, data.email, data.password, `+977${local}`);
-      toast.success("You're in! Check your email to verify.", { id: toastId });
-      setRegisteredEmail(data.email);
+      await ensureTenantSession(slug, tenant?.id ?? null);
+      toast.success("Welcome! You can verify your email later before redeeming.", { id: toastId });
+      navigate(tenantPath(companySlug, slug, "dashboard"));
     } catch (err) {
       toast.error((err as Error).message || "Couldn't create your account — try again.", { id: toastId });
     } finally {
@@ -103,41 +102,6 @@ export function AuthView({ mode }: { mode: Mode }) {
       toast.error((err as Error).message || "Google sign-in didn't work — try again.");
     }
   };
-
-  // Post-register "check your email" panel.
-  if (registeredEmail) {
-    return (
-      <Shell initial={initial}>
-        <h1 className="font-display text-[25px] font-bold text-[var(--ink)]">Check your email</h1>
-        <p className="mb-6 mt-2 text-sm text-[var(--muted)]">
-          We sent a verification link to <b className="text-[var(--ink)]">{registeredEmail}</b>. Open it
-          to start collecting points.
-        </p>
-        <Button
-          onClick={async () => {
-            try {
-              await apiRequest("/api/customer-auth/resend-verification", {
-                method: "POST",
-                body: { email: registeredEmail },
-              });
-              toast.success("Verification email sent — check your inbox.");
-            } catch {
-              toast.error("Couldn't resend that — try again in a bit.");
-            }
-          }}
-          className="w-full"
-          size="lg"
-        >
-          Resend email
-        </Button>
-        <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
-          <Link to={tenantPath(companySlug, slug, "login")} className="font-bold text-[var(--primary-deep)] hover:underline">
-            Go to sign in
-          </Link>
-        </p>
-      </Shell>
-    );
-  }
 
   return (
     <Shell initial={initial}>

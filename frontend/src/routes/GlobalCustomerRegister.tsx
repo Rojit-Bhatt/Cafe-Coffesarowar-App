@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, Phone } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import toast from "react-hot-toast";
 import { useCustomerAuth } from "../context/CustomerAuthContext";
-import { apiRequest } from "../lib/api";
 import { PLATFORM_NAME } from "../lib/platform";
 import { StampdLogo } from "../components/shared/StampdLogo";
 
@@ -25,9 +24,9 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 // "check your email" interstitial. Registering doesn't log in (registerAccount
 // only sends a verification email), matching the existing per-tenant UX.
 export default function GlobalCustomerRegister() {
+  const navigate = useNavigate();
   const { registerUser } = useCustomerAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -40,48 +39,14 @@ export default function GlobalCustomerRegister() {
     try {
       const local = data.phone.replace(/\D/g, "").replace(/^0+/, "");
       await registerUser(data.name, data.email, data.password, `+977${local}`);
-      toast.success("You're in! Check your email to verify.", { id: toastId });
-      setRegisteredEmail(data.email);
+      toast.success("Welcome! You can verify your email later before redeeming.", { id: toastId });
+      navigate("/explore");
     } catch (err) {
       toast.error((err as Error).message || "Couldn't create your account — try again.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (registeredEmail) {
-    return (
-      <Shell>
-        <h1 className="font-display text-[25px] font-bold text-[var(--ink)]">Check your email</h1>
-        <p className="mb-6 mt-2 text-sm text-[var(--muted)]">
-          We sent a verification link to <b className="text-[var(--ink)]">{registeredEmail}</b>. Open it
-          to start collecting points.
-        </p>
-        <button
-          onClick={async () => {
-            try {
-              await apiRequest("/api/customer-auth/resend-verification", {
-                method: "POST",
-                body: { email: registeredEmail },
-              });
-              toast.success("Verification email sent — check your inbox.");
-            } catch {
-              toast.error("Couldn't resend that — try again in a bit.");
-            }
-          }}
-          className="w-full rounded-[var(--radius-btn)] py-4 text-[15px] font-bold text-white"
-          style={{ background: "var(--primary)" }}
-        >
-          Resend email
-        </button>
-        <p className="mt-6 text-center text-[13px] text-[var(--muted)]">
-          <Link to="/customer-login" className="font-bold text-[var(--primary-deep)] hover:underline">
-            Go to sign in
-          </Link>
-        </p>
-      </Shell>
-    );
-  }
 
   return (
     <Shell>

@@ -193,7 +193,12 @@ const registerAccount = async ({ name, email, password, phone, pendingClaimId, c
     }
   }
 
-  return { success: true, message: "Registered. Check your email to verify your account.", accountId: account._id.toString() };
+  const sessionPayload = formatGlobalSessionPayload(account);
+  return {
+    ...sessionPayload,
+    message: "Registered. Check your email to verify your account when you are ready.",
+    accountId: account._id.toString()
+  };
 };
 
 const loginAccount = async ({ email, password }) => {
