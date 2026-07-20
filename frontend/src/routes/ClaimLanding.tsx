@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Mail, Lock, User, Phone, Timer, AlertTriangle, Check, WifiOff } from "lucide-react";
 import toast from "react-hot-toast";
@@ -8,12 +8,12 @@ import { useCustomerAuth } from "../context/CustomerAuthContext";
 import { EarnCelebration } from "../components/customer/EarnCelebration";
 import { GoogleLogin } from "@react-oauth/google";
 import { PhoneStepModal } from "../components/customer/PhoneStepModal";
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 import { ClaimStateScreen } from "../components/customer/ClaimStateScreen";
 import { formatPoints } from "../hooks/usePoints";
 import { tenantPath } from "../lib/tenantPath";
 import { Button } from "@/components/ui/button";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
 type Stage =
   | "resolving"
@@ -95,14 +95,14 @@ export default function ClaimLanding() {
   const checkedOnce = useRef(false);
 
   // Step 1: convert the scanned QR token into a longer-lived pending claim.
+  const tokenParam = params.get("token");
   useEffect(() => {
-    const token = params.get("token");
-    if (!token) {
+    if (!tokenParam) {
       setStage("error");
       setErrorMsg("Missing QR token.");
       return;
     }
-    startClaimOnce(token)
+    startClaimOnce(tokenParam)
       .then((res) => {
         setPendingClaimId(res.data.pendingClaimId);
         setClaimSecret(res.data.claimSecret);
@@ -114,7 +114,7 @@ export default function ClaimLanding() {
         setStage("error");
         setErrorMsg(err.message || "This code is invalid or has expired.");
       });
-  }, [params]);
+  }, [tokenParam]);
 
   // Step 2: once TenantSessionSync (mounted alongside this page) has settled,
   // see if we're already tenant-authenticated — if so, fulfill immediately
@@ -157,7 +157,11 @@ export default function ClaimLanding() {
     return false;
   };
 
+  const fulfillingRef = useRef(false);
+
   const fulfill = async (claimId: string) => {
+    if (fulfillingRef.current) return;
+    fulfillingRef.current = true;
     setStage("fulfilling");
     try {
       const res = await apiRequest<{ success: boolean; data: ClaimResult }>(
@@ -191,6 +195,8 @@ export default function ClaimLanding() {
         setStage("error");
         setErrorMsg(message || "Could not add your points.");
       }
+    } finally {
+      fulfillingRef.current = false;
     }
   };
 
@@ -215,7 +221,7 @@ export default function ClaimLanding() {
     try {
       await login(email, password);
       await ensureTenantSession(slug, tenant?.id ?? null);
-      if (pendingClaimId) fulfill(pendingClaimId);
+      if (pendingClaimId) setStage("fulfilling");
     } catch (e) {
       toast.error((e as Error).message || "Couldn't sign you in — try again.");
     } finally {
@@ -233,7 +239,7 @@ export default function ClaimLanding() {
       );
       await ensureTenantSession(slug, tenant?.id ?? null);
       if (pendingClaimId) {
-        fulfill(pendingClaimId);
+        setStage("fulfilling");
       } else {
         navigate(tenantPath(companySlug, slug, "dashboard"));
       }
@@ -254,7 +260,7 @@ export default function ClaimLanding() {
         setShowPhoneStep(true);
       } else {
         if (pendingClaimId) {
-          fulfill(pendingClaimId);
+          setStage("fulfilling");
         }
       }
     } catch (err) {
@@ -447,7 +453,7 @@ export default function ClaimLanding() {
         <PhoneStepModal
           onDone={() => {
             setShowPhoneStep(false);
-            if (pendingClaimId) fulfill(pendingClaimId);
+            if (pendingClaimId) setStage("fulfilling");
           }}
         />
       )}

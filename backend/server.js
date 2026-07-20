@@ -35,7 +35,7 @@ const express = require("express");
 const cors = require("cors");
 const connectDB = require("./config/db");
 const { PLATFORM_NAME } = require("./config/platform");
-const { seedDemoData, ensurePlatformAdmin } = require("./seed/demoSeed");
+const { seedDemoData, ensurePlatformAdmin, cleanupDemoData } = require("./seed/demoSeed");
 const { ensureDefaultPlansSeeded } = require("./services/subscriptionPlanService");
 
 const authRoutes = require("./routes/authRoutes");
@@ -180,17 +180,27 @@ const startServer = async () => {
     console.warn("[db] Index synchronization warning:", err.message);
   }
 
-  if (process.env.SEED_DEMO_DATA === "false") {
-    if (!process.env.PLATFORM_ADMIN_EMAIL || !process.env.PLATFORM_ADMIN_PASSWORD) {
-      console.error(
-        "FATAL: SEED_DEMO_DATA=false requires PLATFORM_ADMIN_EMAIL and PLATFORM_ADMIN_PASSWORD to be set."
-      );
-      process.exit(1);
-    }
-    await ensureDefaultPlansSeeded();
-    await ensurePlatformAdmin(process.env.PLATFORM_ADMIN_EMAIL, process.env.PLATFORM_ADMIN_PASSWORD);
-  } else {
+  // Only seed demo data if explicitly requested OR if we are running in development with an in-memory mock database.
+  // When connected to a real database (like MongoDB Atlas, where USING_MOCK_DB is false), we do NOT automatically
+  // seed demo data. This prevents polluting the production database with testing/demo data.
+  const shouldSeedDemo = process.env.SEED_DEMO_DATA === "true" || (USING_MOCK_DB && process.env.SEED_DEMO_DATA !== "false");
+
+  if (shouldSeedDemo) {
     await seedDemoData();
+  } else {
+    // If we are connected to a real database (like MongoDB Atlas) and seeding is disabled,
+    // make sure to delete any previous demo seed data so we don't pollute the production database.
+    await cleanupDemoData();
+
+    // Seed the essential default plans.
+    await ensureDefaultPlansSeeded();
+    
+    // Create the platform admin if credentials are provided in env.
+    if (process.env.PLATFORM_ADMIN_EMAIL && process.env.PLATFORM_ADMIN_PASSWORD) {
+      await ensurePlatformAdmin(process.env.PLATFORM_ADMIN_EMAIL, process.env.PLATFORM_ADMIN_PASSWORD);
+    } else {
+      console.log("[db] No PLATFORM_ADMIN_EMAIL/PASSWORD environment variables set; skipping default platform admin bootstrap.");
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {

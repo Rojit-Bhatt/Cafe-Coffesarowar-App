@@ -331,4 +331,105 @@ const seedDemoData = async () => {
   }
 };
 
-module.exports = { seedDemoData, ensurePlatformAdmin };
+const cleanupDemoData = async () => {
+  const Company = require("../models/Company");
+  const Organization = require("../models/Organization");
+  const AdminAccount = require("../models/AdminAccount");
+  const CustomerAccount = require("../models/CustomerAccount");
+  const PointsBalance = require("../models/PointsBalance");
+  const PointsTransaction = require("../models/PointsTransaction");
+  const Campaign = require("../models/Campaign");
+  const RewardItem = require("../models/RewardItem");
+  const Subscription = require("../models/Subscription");
+  const MenuItem = require("../models/MenuItem");
+  const User = require("../models/User");
+  const PendingClaim = require("../models/PendingClaim");
+
+  try {
+    console.log("[cleanup] Starting cleanup of demo seed data from database...");
+
+    const demoSlugs = ["coffesarowar", "himalayan-bites", "sweet-corner"];
+    const companies = await Company.find({ slug: { $in: demoSlugs } });
+    const companyIds = companies.map(c => c._id);
+
+    const outlets = await Organization.find({ companyId: { $in: companyIds } });
+    const outletIds = outlets.map(o => o._id);
+
+    const demoCustomerEmails = ["asha@example.com", "bikash@example.com", "chandra@example.com"];
+    const customerAccounts = await CustomerAccount.find({ email: { $in: demoCustomerEmails } });
+    const customerAccountIds = customerAccounts.map(c => c._id);
+
+    const demoAdminEmails = [
+      "owner@coffesarowar.com", "owner@himalayanbites.com", "owner@sweetcorner.com",
+      "durbarmarg@coffesarowar.com", "patan@coffesarowar.com", "thamel@coffesarowar.com",
+      "durbarmarg@himalayanbites.com", "lakeside@himalayanbites.com", "main@sweetcorner.com",
+      "admin@stampd.co"
+    ];
+
+    const deletedTransactions = await PointsTransaction.deleteMany({
+      $or: [
+        { organizationId: { $in: outletIds } },
+        { userId: { $in: customerAccountIds } }
+      ]
+    });
+    console.log(`[cleanup] Deleted ${deletedTransactions.deletedCount} points transactions.`);
+
+    const deletedBalances = await PointsBalance.deleteMany({
+      $or: [
+        { organizationId: { $in: outletIds } }
+      ]
+    });
+    console.log(`[cleanup] Deleted ${deletedBalances.deletedCount} points balances.`);
+
+    const deletedClaims = await PendingClaim.deleteMany({
+      $or: [
+        { organizationId: { $in: outletIds } }
+      ]
+    });
+    console.log(`[cleanup] Deleted ${deletedClaims.deletedCount} pending claims.`);
+
+    const deletedMenuItems = await MenuItem.deleteMany({ organizationId: { $in: outletIds } });
+    console.log(`[cleanup] Deleted ${deletedMenuItems.deletedCount} menu items.`);
+
+    const deletedRewardItems = await RewardItem.deleteMany({ organizationId: { $in: outletIds } });
+    console.log(`[cleanup] Deleted ${deletedRewardItems.deletedCount} reward items.`);
+
+    const deletedCampaigns = await Campaign.deleteMany({ organizationId: { $in: outletIds } });
+    console.log(`[cleanup] Deleted ${deletedCampaigns.deletedCount} campaigns.`);
+
+    const deletedSubscriptions = await Subscription.deleteMany({ companyId: { $in: companyIds } });
+    console.log(`[cleanup] Deleted ${deletedSubscriptions.deletedCount} subscriptions.`);
+
+    const deletedOutlets = await Organization.deleteMany({ companyId: { $in: companyIds } });
+    console.log(`[cleanup] Deleted ${deletedOutlets.deletedCount} outlets.`);
+
+    const deletedCompanies = await Company.deleteMany({ slug: { $in: demoSlugs } });
+    console.log(`[cleanup] Deleted ${deletedCompanies.deletedCount} companies.`);
+
+    const deletedCustomers = await CustomerAccount.deleteMany({ email: { $in: demoCustomerEmails } });
+    console.log(`[cleanup] Deleted ${deletedCustomers.deletedCount} customer accounts.`);
+
+    const deletedAdmins = await AdminAccount.deleteMany({
+      $or: [
+        { companyId: { $in: companyIds } },
+        { email: { $in: demoAdminEmails } }
+      ]
+    });
+    console.log(`[cleanup] Deleted ${deletedAdmins.deletedCount} admin accounts.`);
+
+    const deletedUsers = await User.deleteMany({
+      $or: [
+        { companyId: { $in: companyIds } },
+        { organizationId: { $in: outletIds } },
+        { email: { $in: [...demoAdminEmails, ...demoCustomerEmails] } }
+      ]
+    });
+    console.log(`[cleanup] Deleted ${deletedUsers.deletedCount} users.`);
+
+    console.log("[cleanup] Demo data cleanup completed successfully.");
+  } catch (err) {
+    console.error("[cleanup] Error cleaning up demo seed data:", err);
+  }
+};
+
+module.exports = { seedDemoData, ensurePlatformAdmin, cleanupDemoData };

@@ -213,7 +213,7 @@ const fulfillPendingClaim = async ({ pendingClaimId, organizationId, customerAcc
         { session }
       );
       if (!consumed || consumed.modifiedCount === 0) {
-        throw createHttpError("This claim has already been used.", 400);
+        throw createHttpError("This claim has already been used.", 400, "CLAIM_ALREADY_FULFILLED");
       }
     });
     return responsePayload;
