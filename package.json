@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "build": "npm run build -w frontend",
+    "start": "NODE_ENV=production node backend/server.js",
     "lint": "npm run lint -w frontend"
   },
   "devDependencies": {

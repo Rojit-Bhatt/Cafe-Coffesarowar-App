@@ -11,7 +11,7 @@ export function TenantSessionSync() {
 
   useEffect(() => {
     if (tenant) {
-      ensureTenantSession(tenant.slug, tenant.id);
+      ensureTenantSession(tenant.slug, tenant.id).catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenant?.slug, tenant?.id]);

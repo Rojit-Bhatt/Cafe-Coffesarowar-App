@@ -54,7 +54,7 @@ const companyRoutes = require("./routes/companyRoutes");
 const adminAuthRoutes = require("./routes/adminAuthRoutes");
 
 const app = express();
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || (process.env.NODE_ENV === "production" ? 3000 : 5001);
 
 // In production the app runs behind Render's proxy, so the real client IP is
 // in X-Forwarded-For, not the socket. Trust exactly one hop so req.ip (and
@@ -125,6 +125,19 @@ app.use("/api/reviews", reviewsRoutes);
 // (mock DB only). Never available against a real database / in production.
 if (USING_MOCK_DB) {
   app.use("/__test__", require("./routes/testHookRoutes"));
+}
+
+// Serve frontend static files in production
+if (process.env.NODE_ENV === "production") {
+  const path = require("path");
+  const distPath = path.resolve(__dirname, "../frontend/dist");
+  app.use(express.static(distPath));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/__test__")) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, "index.html"));
+  });
 }
 
 app.use((req, _res, next) => {

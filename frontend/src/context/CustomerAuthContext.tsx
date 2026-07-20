@@ -118,11 +118,12 @@ export function CustomerAuthProvider({ children }: { children: React.ReactNode }
         if (res.success && res.token && res.user) {
           persistTenant(res.token, res.user);
         }
-      } catch {
+      } catch (err) {
         // Global session invalid/expired/revoked — drop it and any tenant
         // token, don't silently keep the customer half-signed-in.
         clearGlobal();
         clearTenant();
+        throw err;
       } finally {
         setIsLoading(false);
       }
