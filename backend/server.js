@@ -165,6 +165,21 @@ app.use((error, _req, res, _next) => {
 const startServer = async () => {
   await connectDB();
 
+  // Sync indexes to ensure MongoDB has the updated partial-filter unique indexes
+  try {
+    const User = require("./models/User");
+    const CustomerAccount = require("./models/CustomerAccount");
+    if (typeof User.syncIndexes === "function") {
+      await User.syncIndexes();
+    }
+    if (typeof CustomerAccount.syncIndexes === "function") {
+      await CustomerAccount.syncIndexes();
+    }
+    console.log("[db] Database indexes synchronized successfully.");
+  } catch (err) {
+    console.warn("[db] Index synchronization warning:", err.message);
+  }
+
   if (process.env.SEED_DEMO_DATA === "false") {
     if (!process.env.PLATFORM_ADMIN_EMAIL || !process.env.PLATFORM_ADMIN_PASSWORD) {
       console.error(

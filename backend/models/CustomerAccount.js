@@ -24,6 +24,9 @@ const CustomerAccountSchema = new mongoose.Schema({
 // customerAccountService, same pattern authService.registerUser already
 // relies on for its own (tenant-scoped) uniqueness today.
 CustomerAccountSchema.index({ email: 1 }, { unique: true });
-CustomerAccountSchema.index({ googleId: 1 }, { unique: true, sparse: true });
+CustomerAccountSchema.index(
+  { googleId: 1 },
+  { unique: true, partialFilterExpression: { googleId: { $type: "string" } } }
+);
 
 module.exports = mongoose.model("CustomerAccount", CustomerAccountSchema);

@@ -54,7 +54,10 @@ const UserSchema = new mongoose.Schema({
 // Email is unique PER organization (the same person can be a customer at two
 // different businesses). Platform admins share the null-org namespace.
 UserSchema.index({ organizationId: 1, email: 1 }, { unique: true });
-UserSchema.index({ organizationId: 1, googleId: 1 }, { unique: true, sparse: true });
+UserSchema.index(
+  { organizationId: 1, googleId: 1 },
+  { unique: true, partialFilterExpression: { googleId: { $type: "string" } } }
+);
 // One membership per (account, org). A partial filter is required instead of
 // `sparse` — business_admin/platform rows have customerAccountId present but
 // explicitly null, which sparse would NOT exclude, so multiple such rows in
