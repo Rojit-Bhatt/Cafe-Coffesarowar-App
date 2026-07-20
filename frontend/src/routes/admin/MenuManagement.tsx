@@ -212,17 +212,29 @@ export default function MenuManagement() {
             if (file) previewFile(file);
           }}
           onClick={() => fileInputRef.current?.click()}
-          className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[var(--radius-btn)] border-2 border-dashed px-6 py-8 text-center transition-colors"
+          className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[var(--radius-btn)] border-2 border-dashed px-6 py-8 text-center transition-colors hover:border-[var(--brand)]"
           style={{
             borderColor: dragActive ? "var(--brand)" : "var(--line)",
             background: dragActive ? "var(--plat-soft)" : "var(--bg)",
           }}
         >
-          <UploadCloud className="h-6 w-6" style={{ color: "var(--primary-deep)" }} />
+          <UploadCloud className="h-8 w-8" style={{ color: "var(--primary-deep)" }} />
           <div className="text-sm font-bold text-[var(--ink)]">
             {previewing ? "Reading your file…" : "Drag your .xlsx file here, or click to choose one"}
           </div>
-          <div className="text-[12px] text-[var(--muted)]">.xlsx or .xls, up to 5MB</div>
+          <div className="text-[12px] text-[var(--muted)] mb-1">.xlsx or .xls, up to 5MB</div>
+          
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            className="inline-flex items-center gap-1.5 rounded-[11px] bg-[var(--brand)] text-white px-4 py-2 text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            <UploadCloud className="h-4 w-4" /> Upload Menu
+          </button>
+
           <input
             ref={fileInputRef}
             type="file"
@@ -235,12 +247,20 @@ export default function MenuManagement() {
           />
         </div>
 
-        <button
-          onClick={downloadTemplate}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-3.5 py-2.5 text-sm font-bold"
-        >
-          <Download className="h-4 w-4" /> Download template
-        </button>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="inline-flex items-center gap-1.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-3.5 py-2.5 text-sm font-bold hover:bg-[var(--plat-soft)]"
+          >
+            <UploadCloud className="h-4 w-4" /> Select file to upload
+          </button>
+          <button
+            onClick={downloadTemplate}
+            className="inline-flex items-center gap-1.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-3.5 py-2.5 text-sm font-bold hover:bg-[var(--plat-soft)]"
+          >
+            <Download className="h-4 w-4" /> Download template
+          </button>
+        </div>
       </div>
 
       {/* Add item */}

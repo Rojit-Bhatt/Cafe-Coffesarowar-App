@@ -8,6 +8,7 @@ const AdminAccount = require("../models/AdminAccount");
 const AdminVerificationToken = require("../models/AdminVerificationToken");
 const PointsBalance = require("../models/PointsBalance");
 const Subscription = require("../models/Subscription");
+const PointsTransaction = require("../models/PointsTransaction");
 const { resolveTenant } = require("../middleware/tenantMiddleware");
 
 const router = express.Router();
@@ -151,6 +152,32 @@ router.post("/expire-subscription", async (req, res, next) => {
     if (!subscription) return res.status(404).json({ success: false });
 
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/create-test-transaction", async (req, res, next) => {
+  try {
+    const { email, organizationId } = req.body;
+    const user = await User.findOne({
+      organizationId,
+      email: String(email || "").toLowerCase(),
+      role: "customer"
+    });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const tx = await PointsTransaction.create({
+      organizationId,
+      userId: user._id,
+      type: "earn",
+      pointsCenti: 1000,
+      balanceAfterCenti: 1000,
+      billAmount: 10,
+      earnPercent: 10
+    });
+
+    res.json({ success: true, tx });
   } catch (error) {
     next(error);
   }

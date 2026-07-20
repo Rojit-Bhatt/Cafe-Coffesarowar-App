@@ -8,6 +8,8 @@ const User = require("../models/User");
 const Organization = require("../models/Organization");
 const Company = require("../models/Company");
 const PointsBalance = require("../models/PointsBalance");
+const PointsTransaction = require("../models/PointsTransaction");
+const PendingClaim = require("../models/PendingClaim");
 const { ensureUserPointsBalance, formatAuthPayload } = require("./authService");
 const { effectiveBalanceCenti, expiresAtFor } = require("./pointsService");
 const { toPoints } = require("../utils/pointsMath");
@@ -490,6 +492,15 @@ const getMyTenants = async ({ customerAccountId }) => {
     memberships.map(async (membership) => {
       const org = await Organization.findOne({ _id: membership.organizationId });
       if (!org || org.status !== "active") return null;
+
+      // Only include businesses where they have done at least one transaction.
+      // Balance amount can be zero (e.g. if redeemed), so we check the transaction ledger.
+      const hasTransaction = await PointsTransaction.findOne({
+        userId: membership._id,
+        organizationId: membership.organizationId
+      });
+      if (!hasTransaction) return null;
+
       const company = await Company.findOne({ _id: org.companyId });
       const program = resolveProgram(company, org);
 
@@ -622,6 +633,46 @@ const getAvatar = async (customerAccountId) => {
   };
 };
 
+const deleteCustomerAccount = async ({ customerAccountId, email }) => {
+  if (!email || !email.trim()) {
+    throw createHttpError("Email confirmation is required.", 400);
+  }
+
+  const account = await CustomerAccount.findOne({ _id: customerAccountId });
+  if (!account) throw createHttpError("Account not found.", 404);
+
+  if (account.email.toLowerCase() !== email.trim().toLowerCase()) {
+    throw createHttpError("Confirmation email does not match your account email.", 400);
+  }
+
+  // 1. Find all memberships (User rows) associated with this customer account
+  const members = await User.find({ customerAccountId: account._id });
+  const memberIds = members.map(m => m._id);
+
+  // 2. Delete all PointsTransactions for these memberships
+  await PointsTransaction.deleteMany({ userId: { $in: memberIds } });
+
+  // 3. Delete all PointsBalances for these memberships
+  await PointsBalance.deleteMany({ userId: { $in: memberIds } });
+
+  // 4. Delete all PendingClaims for this customer account
+  await PendingClaim.deleteMany({ customerAccountId: account._id });
+
+  // 5. Delete CustomerAvatar
+  await CustomerAvatar.deleteMany({ customerAccountId: account._id });
+
+  // 6. Delete AccountVerificationTokens
+  await AccountVerificationToken.deleteMany({ customerAccountId: account._id });
+
+  // 7. Delete User memberships
+  await User.deleteMany({ customerAccountId: account._id });
+
+  // 8. Delete the CustomerAccount itself
+  await CustomerAccount.deleteOne({ _id: account._id });
+
+  return { success: true };
+};
+
 module.exports = {
   registerAccount,
   loginAccount,
@@ -640,5 +691,6 @@ module.exports = {
   setAvatar,
   removeAvatar,
   getAvatar,
+  deleteCustomerAccount,
   MAX_AVATAR_BYTES
 };

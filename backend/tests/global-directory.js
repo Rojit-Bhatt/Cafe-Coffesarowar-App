@@ -96,6 +96,15 @@ async function main() {
     });
     check("account A enter-tenant A -> tenant JWT issued", Boolean(enterA.body?.token));
 
+    // Create a transaction so tenant A is considered one of user A's businesses
+    const emailA = `account-a-${runSuffix}@test.co`.toLowerCase();
+    const orgIdA = enterA.body.user.organizationId;
+    const txA = await api("/__test__/create-test-transaction", {
+      method: "POST",
+      body: { email: emailA, organizationId: orgIdA }
+    });
+    check("created transaction for account A", txA.body.success);
+
     const myTenantsA = await api("/api/customer-auth/my-tenants", { token: accountAToken });
     check("my-tenants -> 200", myTenantsA.status === 200);
     const myOrgSlugsA = (myTenantsA.body?.memberships || []).map((m) => m.slug);
@@ -113,6 +122,15 @@ async function main() {
       body: {},
     });
     check("account B enter-tenant B -> tenant JWT issued", Boolean(enterB.body?.token));
+
+    // Create a transaction so tenant B is considered one of user B's businesses
+    const emailB = `account-b-${runSuffix}@test.co`.toLowerCase();
+    const orgIdB = enterB.body.user.organizationId;
+    const txB = await api("/__test__/create-test-transaction", {
+      method: "POST",
+      body: { email: emailB, organizationId: orgIdB }
+    });
+    check("created transaction for account B", txB.body.success);
 
     const myTenantsB = await api("/api/customer-auth/my-tenants", { token: accountBToken });
     const myOrgSlugsB = (myTenantsB.body?.memberships || []).map((m) => m.slug);

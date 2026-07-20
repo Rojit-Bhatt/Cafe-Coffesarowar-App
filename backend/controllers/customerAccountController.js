@@ -4,7 +4,8 @@ const {
   verifyAccountEmail, resendVerification, forgotPassword, resetPassword,
   completeProfile, updateAccountProfile, changeAccountPassword,
   enterTenant, getMyTenants,
-  setAvatar, removeAvatar, getAvatar, MAX_AVATAR_BYTES
+  setAvatar, removeAvatar, getAvatar, MAX_AVATAR_BYTES,
+  deleteCustomerAccount
 } = require("../services/customerAccountService");
 
 const register = async (req, res, next) => {
@@ -103,6 +104,18 @@ const changePasswordController = async (req, res, next) => {
       customerAccountId: req.customerAccount.id,
       currentPassword: req.body.currentPassword,
       newPassword: req.body.newPassword
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const deleteAccountController = async (req, res, next) => {
+  try {
+    const result = await deleteCustomerAccount({
+      customerAccountId: req.customerAccount.id,
+      email: req.body.email
     });
     res.status(200).json(result);
   } catch (error) {
@@ -239,6 +252,7 @@ module.exports = {
   completeProfile: completeProfileController,
   updateProfile: updateProfileController,
   changePassword: changePasswordController,
+  deleteAccount: deleteAccountController,
   enterTenant: enterTenantController,
   getMyTenants: getMyTenantsController
 };
