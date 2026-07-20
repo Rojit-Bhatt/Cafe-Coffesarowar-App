@@ -289,6 +289,67 @@ const authenticateWithGoogle = async ({ idToken }) => {
   return out;
 };
 
+// --- profile (global) --------------------------------------------------
+
+// Name and password belong to the CustomerAccount, not to any one outlet's
+// membership row. The tenant-scoped /api/account equivalents write the User
+// row instead, which for a customer means: a rename is silently reverted by
+// the next ensureMembership re-sync, and a password change reports success
+// while sign-in (which reads CustomerAccount.password) keeps the old one.
+// These are the versions the customer app uses.
+const updateAccountProfile = async ({ customerAccountId, name }) => {
+  if (!name || !name.trim()) throw createHttpError("Name is required.", 400);
+
+  const account = await CustomerAccount.findOne({ _id: customerAccountId });
+  if (!account) throw createHttpError("Account not found.", 404);
+
+  account.name = name.trim();
+  await account.save();
+
+  // name is denormalized onto every membership (that's what outlet-scoped
+  // reporting reads), so it has to travel — same shape as completeProfile's
+  // phone fan-out below. Mock DB has no updateMany: find+save loop.
+  const members = await User.find({ customerAccountId: account._id });
+  for (const member of members) {
+    if (member.name !== account.name) {
+      member.name = account.name;
+      await member.save();
+    }
+  }
+
+  return formatAccountPayload(account);
+};
+
+const changeAccountPassword = async ({ customerAccountId, currentPassword, newPassword }) => {
+  if (!currentPassword || !newPassword) {
+    throw createHttpError("Current and new password are required.", 400);
+  }
+  if (newPassword.length < 8) {
+    throw createHttpError("New password must be at least 8 characters.", 400);
+  }
+
+  const account = await CustomerAccount.findOne({ _id: customerAccountId });
+  if (!account) throw createHttpError("Account not found.", 404);
+
+  if (!account.password) {
+    // Either a Google-only signup, or an account whose unproven password was
+    // discarded when Google proved the address (see utils/googleLink.js).
+    // Password reset is the way in — it mails the address Google verified.
+    throw createHttpError(
+      "This account signs in with Google. Use \"forgot password\" if you'd like to set one.",
+      400
+    );
+  }
+
+  const isValid = await bcrypt.compare(currentPassword, account.password);
+  if (!isValid) throw createHttpError("Current password is incorrect.", 401);
+
+  account.password = await bcrypt.hash(newPassword, SALT_ROUNDS);
+  await account.save();
+
+  return { success: true, message: "Password updated." };
+};
+
 const completeProfile = async ({ customerAccountId, phone }) => {
   if (!phone || !phone.trim()) throw createHttpError("Phone number is required.", 400);
 
@@ -561,6 +622,8 @@ module.exports = {
   loginAccount,
   authenticateWithGoogle,
   completeProfile,
+  updateAccountProfile,
+  changeAccountPassword,
   verifyAccountEmail,
   resendVerification,
   forgotPassword,

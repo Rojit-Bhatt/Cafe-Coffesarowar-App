@@ -2,7 +2,8 @@ const multer = require("multer");
 const {
   registerAccount, loginAccount, authenticateWithGoogle,
   verifyAccountEmail, resendVerification, forgotPassword, resetPassword,
-  completeProfile, enterTenant, getMyTenants,
+  completeProfile, updateAccountProfile, changeAccountPassword,
+  enterTenant, getMyTenants,
   setAvatar, removeAvatar, getAvatar, MAX_AVATAR_BYTES
 } = require("../services/customerAccountService");
 
@@ -77,6 +78,31 @@ const completeProfileController = async (req, res, next) => {
     const result = await completeProfile({
       customerAccountId: req.customerAccount.id,
       phone: req.body.phone
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateProfileController = async (req, res, next) => {
+  try {
+    const result = await updateAccountProfile({
+      customerAccountId: req.customerAccount.id,
+      name: req.body.name
+    });
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const changePasswordController = async (req, res, next) => {
+  try {
+    const result = await changeAccountPassword({
+      customerAccountId: req.customerAccount.id,
+      currentPassword: req.body.currentPassword,
+      newPassword: req.body.newPassword
     });
     res.status(200).json(result);
   } catch (error) {
@@ -211,6 +237,8 @@ module.exports = {
   forgotPassword: forgotPasswordController,
   resetPassword: resetPasswordController,
   completeProfile: completeProfileController,
+  updateProfile: updateProfileController,
+  changePassword: changePasswordController,
   enterTenant: enterTenantController,
   getMyTenants: getMyTenantsController
 };
