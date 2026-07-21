@@ -35,20 +35,110 @@ const EMPTY_CONTACT: AdminContactData = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[0-9\s\-()]{7,20}$/;
 
+interface DayHour {
+  day: string;
+  isOpen: boolean;
+  openTime: string; // e.g. "08:00"
+  closeTime: string; // e.g. "20:00"
+}
+
+const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function format12h(time24: string): string {
+  if (!time24) return "";
+  const [hoursStr, minutesStr] = time24.split(":");
+  let hours = parseInt(hoursStr, 10);
+  const minutes = minutesStr || "00";
+  if (isNaN(hours)) return time24;
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  return `${hours}:${minutes} ${ampm}`;
+}
+
+function parseTimePart(timeStr: string): string {
+  const cleaned = timeStr.trim().replace(/\s+/g, " ");
+  const match = cleaned.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (match) {
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const ampm = match[3].toUpperCase();
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, "0")}:${minutes}`;
+  }
+  const matchShort = cleaned.match(/^(\d+)\s*(am|pm)$/i);
+  if (matchShort) {
+    let hours = parseInt(matchShort[1], 10);
+    const ampm = matchShort[2].toUpperCase();
+    if (ampm === "PM" && hours < 12) hours += 12;
+    if (ampm === "AM" && hours === 12) hours = 0;
+    return `${hours.toString().padStart(2, "0")}:00`;
+  }
+  return cleaned;
+}
+
+const parseHoursString = (hoursStr: string): DayHour[] => {
+  const defaultHours = DAYS_OF_WEEK.map(day => ({
+    day,
+    isOpen: day !== "Sunday",
+    openTime: "08:00",
+    closeTime: "20:00",
+  }));
+
+  if (!hoursStr) return defaultHours;
+
+  const lines = hoursStr.split("\n");
+  const parsed = [...defaultHours];
+
+  lines.forEach((line) => {
+    const match = line.match(/^([^:]+):\s*(.*)$/);
+    if (match) {
+      const dayName = match[1].trim();
+      const value = match[2].trim();
+      const dayIndex = DAYS_OF_WEEK.findIndex(
+        d => d.toLowerCase() === dayName.toLowerCase() || d.substring(0, 3).toLowerCase() === dayName.toLowerCase()
+      );
+      if (dayIndex !== -1) {
+        if (value.toLowerCase().includes("closed")) {
+          parsed[dayIndex].isOpen = false;
+        } else {
+          parsed[dayIndex].isOpen = true;
+          const times = value.split("-");
+          if (times.length === 2) {
+            parsed[dayIndex].openTime = parseTimePart(times[0]);
+            parsed[dayIndex].closeTime = parseTimePart(times[1]);
+          }
+        }
+      }
+    }
+  });
+
+  return parsed;
+};
+
+const serializeHours = (dayHours: DayHour[]): string => {
+  return dayHours
+    .map((dh) => {
+      if (!dh.isOpen) {
+        return `${dh.day}: Closed`;
+      }
+      return `${dh.day}: ${format12h(dh.openTime)} - ${format12h(dh.closeTime)}`;
+    })
+    .join("\n");
+};
+
 export default function AdminContact() {
   const { data: settings, isLoading } = useAdminSettings();
   const update = useUpdateAdminSettings();
   const [contact, setContact] = useState<AdminContactData | null>(null);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<{ display_name: string; lat: string; lon: string }[]>([]);
+  const [dayHours, setDayHours] = useState<DayHour[]>([]);
 
   useEffect(() => {
     if (settings && !contact) {
       const initialContact = settings.contact ?? EMPTY_CONTACT;
       setContact(initialContact);
-      setSearchQuery(initialContact.address || "");
+      setDayHours(parseHoursString(initialContact.hours));
     }
   }, [settings, contact]);
 
@@ -94,27 +184,13 @@ export default function AdminContact() {
     }
   };
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) return;
-    setSearching(true);
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setSearchResults(data);
-        if (data.length === 0) {
-          toast.error("No locations found for that search. Try an address or outlet name.");
-        }
-      } else {
-        toast.error("Failed to search location.");
-      }
-    } catch (err) {
-      toast.error("Error searching location.");
-    } finally {
-      setSearching(false);
-    }
+  const updateDayHour = (index: number, patch: Partial<DayHour>) => {
+    setDayHours((prev) => {
+      const next = prev.map((dh, i) => (i === index ? { ...dh, ...patch } : dh));
+      const serialized = serializeHours(next);
+      setContact((c) => (c ? { ...c, hours: serialized } : c));
+      return next;
+    });
   };
 
   return (
@@ -150,89 +226,55 @@ export default function AdminContact() {
             />
           </Field>
 
-          <div className="relative">
-            <label className="mb-1.5 block text-sm font-bold">Business Outlet Location</label>
-            <div className="flex gap-2">
-              <input
-                id="location-search-input"
-                type="text"
-                placeholder="Search for physical address or outlet location..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (!e.target.value) {
-                    setSearchResults([]);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    handleSearch();
-                  }
-                }}
-                className="flex-1 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-              />
-              <button
-                id="location-search-btn"
-                type="button"
-                onClick={handleSearch}
-                disabled={searching}
-                className="rounded-[11px] bg-[var(--primary)] text-white px-4 py-2 text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
-              >
-                {searching ? "Searching..." : "Search"}
-              </button>
+          <div className="border-t border-[var(--line)] pt-3">
+            <label className="mb-3 block text-sm font-bold text-[var(--ink)]">Open Hours</label>
+            <div className="flex flex-col gap-3.5 rounded-[11px] border border-[var(--line)] bg-[var(--bg)] p-4 shadow-sm">
+              {dayHours.map((dh, index) => (
+                <div key={dh.day} className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-3.5 last:border-b-0 last:pb-0">
+                  <div className="flex items-center gap-3">
+                    {/* Toggle Switch */}
+                    <button
+                      type="button"
+                      onClick={() => updateDayHour(index, { isOpen: !dh.isOpen })}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        dh.isOpen ? "bg-[var(--primary)]" : "bg-gray-200"
+                      }`}
+                      id={`toggle-${dh.day.toLowerCase()}`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          dh.isOpen ? "translate-x-5" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                    <span className="text-sm font-bold w-24 text-left text-[var(--ink)]">{dh.day}</span>
+                  </div>
+                  
+                  {dh.isOpen ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={dh.openTime}
+                        onChange={(e) => updateDayHour(index, { openTime: e.target.value })}
+                        className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink)] focus:border-[var(--primary)] focus:outline-none"
+                      />
+                      <span className="text-xs text-[var(--muted)]">to</span>
+                      <input
+                        type="time"
+                        value={dh.closeTime}
+                        onChange={(e) => updateDayHour(index, { closeTime: e.target.value })}
+                        className="rounded-[8px] border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--ink)] focus:border-[var(--primary)] focus:outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <span className="text-[11px] font-bold text-[var(--warn)] uppercase tracking-wider bg-[var(--warn-soft)] px-2.5 py-1 rounded-[6px]">
+                      Closed
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
-
-            {searchResults.length > 0 && (
-              <div id="search-results-dropdown" className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-[11px] border border-[var(--line)] bg-[var(--surface)] p-1.5 shadow-lg">
-                {searchResults.map((result, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      set("address", result.display_name);
-                      set("latitude", Number(result.lat));
-                      set("longitude", Number(result.lon));
-                      setSearchQuery(result.display_name);
-                      setSearchResults([]);
-                    }}
-                    className="w-full rounded-[8px] px-3 py-2 text-left text-xs hover:bg-[var(--plat-soft)] transition-colors text-[var(--ink)] block truncate"
-                  >
-                    {result.display_name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {contact.address && (
-              <div id="selected-address-badge" className="mt-3 rounded-[11px] border border-[var(--line)] bg-[var(--plat-soft)] px-3.5 py-2.5 text-xs text-[var(--ink)] flex items-center justify-between">
-                <span className="truncate font-semibold flex-1 mr-2">{contact.address}</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    set("address", "");
-                    set("latitude", null);
-                    set("longitude", null);
-                    setSearchQuery("");
-                  }}
-                  className="text-xs font-bold text-[var(--warn)] hover:underline"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
           </div>
-
-          <Field label="Hours">
-            <textarea
-              id="contact-hours"
-              value={contact.hours}
-              onChange={(e) => set("hours", e.target.value)}
-              rows={2}
-              placeholder="Mon–Sat: 8am–8pm, Sun: Closed"
-              className="w-full rounded-[11px] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-            />
-          </Field>
           
           <Field label="About us">
             <textarea

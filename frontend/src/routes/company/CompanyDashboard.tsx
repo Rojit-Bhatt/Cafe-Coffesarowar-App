@@ -20,6 +20,9 @@ interface Outlet {
   admin: { email: string; name: string; emailVerified: boolean } | null;
 }
 
+const slugify = (s: string) =>
+  s.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
+
 const EMPTY_FORM = {
   name: "", slug: "", category: "cafe",
   adminName: "", adminEmail: "", adminPassword: "",
@@ -160,21 +163,18 @@ export default function CompanyDashboard() {
           <div className="flex flex-col gap-3">
             <input
               value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value, slug: slugify(e.target.value) }))}
               placeholder="Outlet name (e.g. Durbarmarg)"
               className="w-full rounded-[var(--radius-btn)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
-            <label className="block">
+            <div className="block">
               <span className="mb-1 block text-[12px] font-semibold text-[var(--soft)]">
-                URL: /{company?.slug ?? "company"}/<b className="text-[var(--ink)]">{form.slug || "outlet"}</b>
+                URL Handle (Auto-filled)
               </span>
-              <input
-                value={form.slug}
-                onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value }))}
-                placeholder="url-slug"
-                className="w-full rounded-[var(--radius-btn)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
-              />
-            </label>
+              <div className="rounded-[var(--radius-btn)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm font-mono text-[var(--muted)] opacity-80">
+                /{company?.slug ?? "company"}/{form.slug || "outlet"}
+              </div>
+            </div>
             <select
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}

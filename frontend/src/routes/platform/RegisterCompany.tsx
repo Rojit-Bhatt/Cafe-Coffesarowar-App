@@ -21,6 +21,7 @@ export default function RegisterCompany() {
     slug: "",
     ownerName: "",
     ownerEmail: "",
+    phone: "",
     ownerPassword: "",
     // "" means "use the platform default". These become the company's
     // programDefaults — the value every outlet under it inherits — so a
@@ -73,7 +74,7 @@ export default function RegisterCompany() {
 
   const reset = () => {
     setForm({
-      name: "", slug: "", ownerName: "", ownerEmail: "", ownerPassword: "",
+      name: "", slug: "", ownerName: "", ownerEmail: "", phone: "", ownerPassword: "",
       earnPercent: "", pointsExpiryDays: "",
     });
     setSlugEdited(false);
@@ -224,6 +225,12 @@ export default function RegisterCompany() {
               value={form.ownerEmail}
               onChange={(e) => set("ownerEmail", e.target.value)}
               placeholder="Owner email"
+              className="rounded-[var(--radius-btn)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
+            />
+            <input
+              value={form.phone}
+              onChange={(e) => set("phone", e.target.value)}
+              placeholder="Owner phone"
               className="rounded-[var(--radius-btn)] border border-[var(--line)] bg-[var(--bg)] px-4 py-3 text-sm focus:border-[var(--primary)] focus:outline-none"
             />
             <input
